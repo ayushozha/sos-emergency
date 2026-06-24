@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:genui/genui.dart';
+import 'package:genui_template/catalog.dart';
 import 'package:genui_template/model/model_client.dart';
+import 'package:genui_template/prompt.dart';
 
 /// Owns the GenUI pipeline for a single screen and disposes it as a unit.
 ///
@@ -15,10 +17,28 @@ import 'package:genui_template/model/model_client.dart';
 /// straight from [Conversation]'s [Conversation.state], not re-implemented
 /// here. The session takes ownership of [modelClient] and disposes it too.
 class GenUiSession {
-  GenUiSession({required Catalog catalog, required this.modelClient})
+  GenUiSession({
+    required ModelClient Function({required String systemPrompt})
+    modelClientBuilder,
+  }) {
+    /// The catalog defines the surfaces the model can render and how to
+    /// render them.
+    final catalog = buildCatalog();
+
     // The controller renders surfaces from the catalog and tracks which ones
     // currently exist.
-    : _controller = SurfaceController(catalogs: [catalog]) {
+    _controller = SurfaceController(catalogs: [catalog]);
+
+    /// Combining the system prompt (which teaches the model how to produce
+    /// valid A2UI JSON) with the catalog and the user defined system prompt
+    /// (which guides the overall interaction) into a single system prompt for
+    /// the LLM
+    final combinedPrompt = PromptBuilder.chat(
+      catalog: catalog,
+      systemPromptFragments: [systemPrompt],
+    ).systemPromptJoined();
+
+    _modelClient = modelClientBuilder(systemPrompt: combinedPrompt);
     // The transport is the bridge between the model and GenUI. When the
     // conversation has a message to send, `onSend` forwards it to the model and
     // feeds each streamed text chunk back via `addChunk`. The transport parses
@@ -26,8 +46,8 @@ class GenUiSession {
     // the UI updates as the JSON streams in.
     _transport = A2uiTransportAdapter(
       onSend: (message) async {
-        await modelClient
-            .sendMessage(message.text)
+        await _modelClient
+            .sendMessage(_promptFor(message))
             .forEach(_transport.addChunk);
       },
     );
@@ -39,16 +59,14 @@ class GenUiSession {
     );
   }
 
-  /// The model client driving the conversation. Owned and disposed by this
-  /// session.
-  final ModelClient modelClient;
-  final SurfaceController _controller;
+  late final SurfaceController _controller;
+  late final ModelClient _modelClient;
   late final A2uiTransportAdapter _transport;
   late final Conversation _conversation;
 
   /// The raw A2UI JSON of the current (or most recent) model turn, updated live
   /// as the response streams in.
-  ValueListenable<String> get a2uiSource => modelClient.latestResponse;
+  ValueListenable<String> get a2uiSource => _modelClient.latestResponse;
 
   /// The current state of the conversation, including active surfaces and
   /// waiting status.
@@ -61,6 +79,22 @@ class GenUiSession {
   /// Sends a user message to the model and starts the conversation.
   void sendMessage(String text) =>
       _conversation.sendRequest(ChatMessage.user(text));
+
+  /// Builds the text turn sent to the model from a conversation message.
+  ///
+  /// Typed messages carry their content as text. Messages from surface
+  /// interactions (e.g. a button tap) instead carry their payload as a
+  /// [UiInteractionPart] whose JSON describes the action, and have no text.
+  /// Forwarding only [ChatMessage.text] would send the model an empty turn,
+  /// so it loses all context for the interaction and replies with plain text
+  /// instead of new A2UI. Falling back to the interaction JSON keeps the model
+  /// aware of what the user did.
+  static String _promptFor(ChatMessage message) {
+    if (message.text.trim().isNotEmpty) return message.text;
+    return message.parts.uiInteractionParts
+        .map((part) => part.interaction)
+        .join('\n');
+  }
 
   /// Looks up the render context for a surface by its id.
   ///
@@ -75,6 +109,6 @@ class GenUiSession {
     _conversation.dispose();
     _transport.dispose();
     _controller.dispose();
-    modelClient.dispose();
+    _modelClient.dispose();
   }
 }

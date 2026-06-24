@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:genui/genui.dart' hide ChatMessage;
 import 'package:genui_template/model/model_client.dart';
 import 'package:genui_template/prompt.dart';
@@ -12,30 +11,14 @@ import 'package:openai_dart/openai_dart.dart' hide MessageRole;
 /// the widget [Catalog]. Streams the raw text chunks of each model turn.
 class FeatherlessModelClient extends ModelClient {
   FeatherlessModelClient({
-    required Catalog catalog,
+    required super.systemPrompt,
     String? apiKey,
     String? model,
   }) : _model = model ?? _defaultModel,
        _client = OpenAIClient.withApiKey(
          apiKey ?? _defaultApiKey,
          baseUrl: _baseUrl,
-       ),
-       _systemPrompt = PromptBuilder.chat(
-         catalog: catalog,
-         systemPromptFragments: [systemPrompt],
-       ).systemPromptJoined();
-
-  /// Test-only constructor that accepts a pre-built [OpenAIClient].
-  @visibleForTesting
-  FeatherlessModelClient.withClient({
-    required Catalog catalog,
-    required this._client,
-    String? model,
-  }) : _model = model ?? _defaultModel,
-       _systemPrompt = PromptBuilder.chat(
-         catalog: catalog,
-         systemPromptFragments: [systemPrompt],
-       ).systemPromptJoined();
+       );
 
   static const String _baseUrl = 'https://api.featherless.ai/v1';
 
@@ -51,7 +34,6 @@ class FeatherlessModelClient extends ModelClient {
 
   final String _model;
   final OpenAIClient _client;
-  final String _systemPrompt;
 
   @override
   Stream<String> generateResponse() async* {
@@ -59,7 +41,7 @@ class FeatherlessModelClient extends ModelClient {
       ChatCompletionCreateRequest(
         model: _model,
         messages: [
-          ChatMessage.system(_systemPrompt),
+          ChatMessage.system(systemPrompt),
           ...history.map(_toMessage),
         ],
       ),

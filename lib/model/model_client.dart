@@ -19,8 +19,14 @@ class ModelMessage {
 /// response streams in. Subclasses only implement [generateResponse], which
 /// knows how to call a specific model SDK and stream back its raw text chunks.
 abstract class ModelClient {
+  ModelClient({required this.systemPrompt});
+
   /// The running conversation history sent to the model on each turn.
   final List<ModelMessage> history = [];
+
+  /// The original system prompt for guiding the interaction and teaching the
+  /// model how to produce valid A2UI JSON.
+  final String systemPrompt;
 
   /// The raw text of the most recent (or in-progress) model turn.
   ///

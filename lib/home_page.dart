@@ -2,20 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
-import 'package:genui_template/catalog.dart';
 import 'package:genui_template/conversation.dart';
 import 'package:genui_template/model/featherless_model_client.dart';
 import 'package:genui_template/widgets/widgets.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key}) : _sessionOverride = null;
-
-  /// Test-only constructor that bypasses the default session creation.
-  @visibleForTesting
-  const HomePage.withSession(GenUiSession session, {super.key})
-    : _sessionOverride = session;
-
-  final GenUiSession? _sessionOverride;
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -30,19 +22,9 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    // The catalog of widgets the model is allowed to generate. The same
-    // catalog drives both the rendered surfaces and the system prompt, so the
-    // model only emits components this client can actually build.
-    final catalog = buildCatalog();
-
     // The session owns the whole GenUI pipeline (model client, controller,
     // transport, and conversation) and disposes it as a unit.
-    _session =
-        widget._sessionOverride ??
-        GenUiSession(
-          catalog: catalog,
-          modelClient: FeatherlessModelClient(catalog: catalog),
-        );
+    _session = GenUiSession(modelClientBuilder: FeatherlessModelClient.new);
 
     // Surface model/transport failures the GenUI pipeline would otherwise
     // swallow. Featherless 401/400/503 errors are routine during development.

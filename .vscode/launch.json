@@ -8,11 +8,9 @@
       "name": "Launch App",
       "request": "launch",
       "type": "dart",
-      "program": "lib/bootstrap.dart",
+      "program": "lib/main.dart",
       "args": [
-        "-t",
-        "lib/bootstrap.dart",
-        "--dart-define=GEMINI_API_KEY=<YOUR_API_KEY>"
+        "--dart-define=FEATHERLESS_API_KEY=YOUR_KEY_HERE"
       ]
     }
   ]
