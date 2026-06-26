@@ -7,10 +7,13 @@ the secret never ships inside the app binary.
 ```
 backend/
   app/
-    main.py        # FastAPI app, CORS, routes (/health, /v1/chat/stream)
-    config.py      # settings from env / .env (the API key lives here)
-    schemas.py     # request shapes (system prompt + history)
-    featherless.py # OpenAI-compatible streaming client (only place the key is used)
+    main.py          # FastAPI app, CORS, routes (chat + voice agent)
+    config.py        # settings from env / .env (API keys live here)
+    schemas.py       # request shapes (system prompt + history)
+    featherless.py   # OpenAI-compatible streaming client (only place the key is used)
+    deepgram_agent.py# thin wrapper around one Deepgram Voice Agent websocket
+    voice_prompt.py  # the spoken emergency-dispatcher persona + render function
+  voice_test.html    # browser test harness for both the chat and voice surfaces
   requirements.txt
   .env.example
 ```
@@ -52,6 +55,38 @@ produces it:
 {"delta": "..."}   // zero or more, in order
 {"done": true}     // terminal success marker
 {"error": "..."}   // terminal error marker (bad key, upstream/network failure)
+```
+
+## Voice agent (hands-free layer)
+
+`WS /v1/voice/agent` bridges the client to Deepgram's managed Voice Agent
+(STT → "think" LLM → TTS over one socket). When the think model decides visual
+guidance would help, it calls `render_emergency_ui`; the backend runs the
+**existing** A2UI pipeline (`featherless.stream_deltas`) and pushes the deltas
+back down the same socket — the UI JSON is never read aloud. See
+`VOICE_AGENT_SPEC.md` and `spec/` for the full design.
+
+Wire contract (client ↔ backend):
+
+1. First frame (text): `{"system": "…A2UI prompt…", "model": "…optional…"}`.
+2. Then **binary** mic frames — linear16 PCM @ 16 kHz.
+3. Down frames: **binary** = TTS audio (linear16/WAV @ 24 kHz); **text** = NDJSON
+   (`render_start` / `delta` / `done` / `transcript` / `event` / `error`).
+
+Needs a `DEEPGRAM_API_KEY` (see `.env.example`). Check readiness:
+
+```sh
+curl http://localhost:8000/v1/voice/health
+```
+
+### Test harness
+
+`voice_test.html` exercises both surfaces from the browser with no Flutter build.
+Serve it from `localhost` (required for mic access) with the server running:
+
+```sh
+cd backend && python3 -m http.server 7861
+# open http://localhost:7861/voice_test.html
 ```
 
 ## How the Flutter app connects
