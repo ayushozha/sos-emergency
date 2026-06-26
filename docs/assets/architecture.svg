@@ -15,6 +15,9 @@
     <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#2E9E6B"/>
     </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#DD453D"/>
+    </marker>
   </defs>
 
   <!-- Background -->
@@ -123,17 +126,15 @@
   <path d="M328 268 L360 268" stroke="#3A7BD0" stroke-width="2.5" marker-end="url(#arrow)" fill="none"/>
   <text x="332" y="258" font-family="Segoe UI, sans-serif" font-size="9" fill="#3A7BD0">REST/NDJSON</text>
 
-  <path d="M328 330 L360 330" stroke="#DD453D" stroke-width="2.5" fill="none"/>
-  <path d="M360 330 L360 330" stroke="#DD453D" stroke-width="2.5" marker-end="url(#arrow)" fill="none"/>
+  <path d="M328 330 L360 330" stroke="#DD453D" stroke-width="2.5" marker-end="url(#arrowRed)" fill="none"/>
   <text x="332" y="320" font-family="Segoe UI, sans-serif" font-size="9" fill="#DD453D">WebSocket</text>
 
   <path d="M600 266 L632 210" stroke="#3A7BD0" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
-  <path d="M600 406 L632 430" stroke="#DD453D" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+  <path d="M600 406 L632 430" stroke="#DD453D" stroke-width="2" marker-end="url(#arrowRed)" fill="none"/>
   <path d="M828 340 L828 320 L600 320 L600 406" stroke="#2E9E6B" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowGreen)" fill="none"/>
   <text x="700" y="308" font-family="Segoe UI, sans-serif" font-size="9" fill="#2E9E6B">function call → A2UI</text>
 
   <!-- Loop annotation -->
-  <rect x="48" y="584" width="864" height="0" fill="none"/>
   <rect x="48" y="588" width="864" height="1" fill="#ECE7E0"/>
   <text x="48" y="608" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">
     Sense → Classify → Compose (catalog) → Validate → Render Surface → React (DataModel feeds back to agent)
