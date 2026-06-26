@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "installations": {
+    "claude": {
+      "flutter": {
+        "skills": [
+          {
+            "name": "flutter-implement-json-serialization",
+            "installedAt": "2026-06-26T19:42:34.159356Z"
+          },
+          {
+            "name": "flutter-add-widget-test",
+            "installedAt": "2026-06-26T19:42:34.160526Z"
+          },
+          {
+            "name": "flutter-use-http-package",
+            "installedAt": "2026-06-26T19:42:34.161448Z"
+          },
+          {
+            "name": "flutter-build-responsive-layout",
+            "installedAt": "2026-06-26T19:42:34.162367Z"
+          },
+          {
+            "name": "flutter-apply-architecture-best-practices",
+            "installedAt": "2026-06-26T19:42:34.164626Z"
+          },
+          {
+            "name": "flutter-add-widget-preview",
+            "installedAt": "2026-06-26T19:42:34.165899Z"
+          },
+          {
+            "name": "flutter-setup-declarative-routing",
+            "installedAt": "2026-06-26T19:42:34.167114Z"
+          },
+          {
+            "name": "flutter-fix-layout-issues",
+            "installedAt": "2026-06-26T19:42:34.168554Z"
+          },
+          {
+            "name": "flutter-add-integration-test",
+            "installedAt": "2026-06-26T19:42:34.169608Z"
+          },
+          {
+            "name": "flutter-setup-localization",
+            "installedAt": "2026-06-26T19:42:34.170852Z"
+          }
+        ]
+      },
+      "riverpod": {
+        "skills": [
+          {
+            "name": "riverpod-family",
+            "installedAt": "2026-06-26T19:42:34.172285Z"
+          },
+          {
+            "name": "riverpod-consumers",
+            "installedAt": "2026-06-26T19:42:34.173042Z"
+          },
+          {
+            "name": "riverpod-retry",
+            "installedAt": "2026-06-26T19:42:34.174240Z"
+          },
+          {
+            "name": "riverpod-eager-initialization",
+            "installedAt": "2026-06-26T19:42:34.175261Z"
+          },
+          {
+            "name": "riverpod-faq-and-practices",
+            "installedAt": "2026-06-26T19:42:34.176621Z"
+          },
+          {
+            "name": "riverpod-auto-dispose",
+            "installedAt": "2026-06-26T19:42:34.177641Z"
+          },
+          {
+            "name": "riverpod-cancel",
+            "installedAt": "2026-06-26T19:42:34.178516Z"
+          },
+          {
+            "name": "riverpod-codegen-and-hooks",
+            "installedAt": "2026-06-26T19:42:34.179341Z"
+          },
+          {
+            "name": "riverpod-containers",
+            "installedAt": "2026-06-26T19:42:34.180139Z"
+          },
+          {
+            "name": "riverpod-scoping",
+            "installedAt": "2026-06-26T19:42:34.180807Z"
+          },
+          {
+            "name": "riverpod-from-provider",
+            "installedAt": "2026-06-26T19:42:34.181574Z"
+          },
+          {
+            "name": "riverpod-pull-to-refresh",
+            "installedAt": "2026-06-26T19:42:34.182278Z"
+          },
+          {
+            "name": "riverpod-observers",
+            "installedAt": "2026-06-26T19:42:34.183062Z"
+          },
+          {
+            "name": "riverpod-migration",
+            "installedAt": "2026-06-26T19:42:34.185071Z"
+          },
+          {
+            "name": "riverpod-testing",
+            "installedAt": "2026-06-26T19:42:34.185770Z"
+          },
+          {
+            "name": "riverpod-getting-started",
+            "installedAt": "2026-06-26T19:42:34.186482Z"
+          },
+          {
+            "name": "riverpod-overrides",
+            "installedAt": "2026-06-26T19:42:34.187160Z"
+          },
+          {
+            "name": "riverpod-select",
+            "installedAt": "2026-06-26T19:42:34.187876Z"
+          },
+          {
+            "name": "riverpod-refs",
+            "installedAt": "2026-06-26T19:42:34.188887Z"
+          },
+          {
+            "name": "riverpod-3-0-migration",
+            "installedAt": "2026-06-26T19:42:34.189649Z"
+          },
+          {
+            "name": "riverpod-mutations",
+            "installedAt": "2026-06-26T19:42:34.190337Z"
+          },
+          {
+            "name": "riverpod-providers",
+            "installedAt": "2026-06-26T19:42:34.191492Z"
+          },
+          {
+            "name": "riverpod-offline",
+            "installedAt": "2026-06-26T19:42:34.192199Z"
+          }
+        ]
+      }
+    }
+  }
+}
