@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
-import 'package:genui_template/conversation.dart';
-import 'package:genui_template/model/featherless_model_client.dart';
-import 'package:genui_template/widgets/widgets.dart';
+import 'package:sos_emergency/conversation.dart';
+import 'package:sos_emergency/model/featherless_model_client.dart';
+import 'package:sos_emergency/widgets/widgets.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

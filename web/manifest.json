@@ -1,6 +1,6 @@
 {
-    "name": "genui_template",
-    "short_name": "genui_template",
+    "name": "SOS Emergency",
+    "short_name": "SOS Emergency",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

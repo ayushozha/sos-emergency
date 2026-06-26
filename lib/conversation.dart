@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:genui/genui.dart';
-import 'package:genui_template/catalog.dart';
-import 'package:genui_template/model/model_client.dart';
-import 'package:genui_template/prompt.dart';
+import 'package:sos_emergency/catalog.dart';
+import 'package:sos_emergency/model/model_client.dart';
+import 'package:sos_emergency/prompt.dart';
 
 /// Owns the GenUI pipeline for a single screen and disposes it as a unit.
 ///
