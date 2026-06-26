@@ -60,4 +60,21 @@ void main() {
     // The being-followed page routes to safety.
     expect(find.text('Drive to the nearest police station'), findsOneWidget);
   });
+
+  testWidgets('tap to speak starts the voice session', (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    container.read(aiEnabledProvider.notifier).disable();
+
+    await _pumpApp(tester, container);
+
+    expect(find.text('Tap to speak'), findsOneWidget);
+
+    await tester.tap(find.text('Tap to speak'));
+    await tester.pumpAndSettle();
+
+    // The session goes live and the control reflects it.
+    expect(find.text('Tap to speak'), findsNothing);
+    expect(find.text('Listening…'), findsOneWidget);
+  });
 }

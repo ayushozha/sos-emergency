@@ -52,6 +52,13 @@ class VoiceSessionController extends _$VoiceSessionController {
   void send(VoiceClientFrame frame) =>
       ref.read(voiceSessionProvider).send(frame);
 
+  /// Stops listening — unsubscribes and returns to idle.
+  void disconnect() {
+    unawaited(_sub?.cancel());
+    _sub = null;
+    state = (status: VoiceSessionStatus.idle, lastIntent: state.lastIntent);
+  }
+
   void _onFrame(VoiceServerFrame frame) {
     switch (frame) {
       case VoiceServerSessionReady():

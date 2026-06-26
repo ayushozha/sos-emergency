@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sos_emergency/app/theme/sos_tokens.dart';
 import 'package:sos_emergency/app/theme/surface_palette.dart';
+import 'package:sos_emergency/application/voice_session_controller.dart';
 import 'package:sos_emergency/domain/models/a2ui_node.dart';
 import 'package:sos_emergency/presentation/catalog/shared/sos_chrome.dart';
 import 'package:sos_emergency/presentation/catalog/shared/sos_icons.dart';
@@ -312,11 +313,16 @@ class _StepRow extends StatelessWidget {
 /// (idle·listening·processing), `transcript?`.
 Widget buildPushToTalk(BuildContext context, WidgetRef ref, A2uiNode node) {
   final palette = ref.watch(surfacePaletteProvider);
-  final state = ref.resolveString(node, 'state') ?? 'idle';
+  final propState = ref.resolveString(node, 'state') ?? 'idle';
   final transcript = ref.resolveString(node, 'transcript');
-  final listening = state == 'listening';
+  // The live voice session drives the state; the prop is the fallback.
+  final voiceStatus = ref.watch(voiceSessionControllerProvider).status;
+  final listening =
+      voiceStatus == VoiceSessionStatus.live ||
+      voiceStatus == VoiceSessionStatus.connecting ||
+      propState == 'listening';
 
-  return Container(
+  final body = Container(
     padding: const EdgeInsets.all(SosTokens.space5),
     decoration: BoxDecoration(
       color: listening ? palette.safe.withValues(alpha: 0.12) : palette.tray,
@@ -364,6 +370,20 @@ Widget buildPushToTalk(BuildContext context, WidgetRef ref, A2uiNode node) {
             ],
           ),
       ],
+    ),
+  );
+
+  return Semantics(
+    button: true,
+    label: listening ? 'Listening — tap to stop' : 'Tap to speak',
+    child: Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(SosTokens.radiusMd),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(SosTokens.radiusMd),
+        onTap: ref.toggleVoice,
+        child: body,
+      ),
     ),
   );
 }
