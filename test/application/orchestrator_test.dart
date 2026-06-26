@@ -6,11 +6,11 @@ import 'package:sos_emergency/domain/models/severity.dart';
 
 void main() {
   group('orchestrator baseline loop', () {
-    test('starts on the triage surface before any signal', () {
+    test('starts on the triage surface before any signal', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final surface = container.read(surfaceControllerProvider);
+      final surface = await container.read(surfaceControllerProvider.future);
       expect(surface.mode, AppMode.triage);
       expect(surface.isFallback, isTrue);
     });
@@ -20,7 +20,6 @@ void main() {
       () async {
         final container = ProviderContainer();
         addTearDown(container.dispose);
-        // Subscribe so the context stream starts emitting.
         container.listen(surfaceControllerProvider, (_, _) {});
 
         container
@@ -28,7 +27,7 @@ void main() {
             .select(ScenarioClass.crash);
         await container.read(emergencyContextProvider.future);
 
-        final surface = container.read(surfaceControllerProvider);
+        final surface = await container.read(surfaceControllerProvider.future);
         expect(surface.mode, AppMode.crash);
         expect(surface.severity, Severity.critical);
         expect(surface.root.props['tier'], 'critical');
@@ -44,13 +43,19 @@ void main() {
           .read(demoScenarioProvider.notifier)
           .select(ScenarioClass.flatTire);
       await container.read(emergencyContextProvider.future);
-      expect(container.read(surfaceControllerProvider).mode, AppMode.roadside);
+      expect(
+        (await container.read(surfaceControllerProvider.future)).mode,
+        AppMode.roadside,
+      );
 
       container
           .read(demoScenarioProvider.notifier)
           .select(ScenarioClass.beingFollowed);
       await container.read(emergencyContextProvider.future);
-      expect(container.read(surfaceControllerProvider).mode, AppMode.threat);
+      expect(
+        (await container.read(surfaceControllerProvider.future)).mode,
+        AppMode.threat,
+      );
     });
   });
 }

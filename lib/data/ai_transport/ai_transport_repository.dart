@@ -1,10 +1,21 @@
 import 'package:sos_emergency/domain/models/a2ui_node.dart';
+import 'package:sos_emergency/domain/models/classification.dart';
+import 'package:sos_emergency/domain/models/emergency_context.dart';
 
-/// Transport boundary for screen composition. The concrete impl targets a fast
-/// REST endpoint (Phase 3); Phase 0 uses `MockTransport` with hand-authored
-/// A2UI JSON. Domain code depends only on this interface.
-// ignore: one_member_abstracts
+/// Thrown when the compose transport fails or returns an invalid surface.
+class AiTransportException implements Exception {
+  AiTransportException(this.message);
+  final String message;
+
+  @override
+  String toString() => 'AiTransportException: $message';
+}
+
+/// Transport boundary for screen composition (PDF `POST /v1/chat/stream`).
 abstract interface class AiTransportRepository {
-  /// Returns the complete A2UI screen-JSON document as a parsed node tree.
-  Future<A2uiNode> compose();
+  Future<A2uiNode> compose({
+    required Classification classification,
+    required EmergencyContext context,
+    bool stream = false,
+  });
 }

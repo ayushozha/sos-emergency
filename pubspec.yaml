@@ -15,8 +15,10 @@ dependencies:
   go_router: ^17.3.0
   googleai_dart: ^8.0.0
   json_annotation: ^4.9.0
+  http: ^1.2.2
   openai_dart: ^1.4.0
   riverpod_annotation: ^4.0.0
+  web_socket_channel: ^3.0.1
 
 dev_dependencies:
   build_runner: ^2.15.0

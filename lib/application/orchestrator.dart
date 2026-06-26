@@ -5,6 +5,7 @@ import 'package:sos_emergency/domain/engine/decision_engine.dart';
 import 'package:sos_emergency/domain/models/emergency_context.dart';
 import 'package:sos_emergency/domain/models/emergency_enums.dart';
 import 'package:sos_emergency/domain/models/surface.dart';
+import 'package:sos_emergency/domain/orchestrator/ai_composer.dart';
 import 'package:sos_emergency/domain/orchestrator/deterministic_composer.dart';
 import 'package:sos_emergency/domain/orchestrator/scenario_library.dart';
 
@@ -17,20 +18,15 @@ DecisionEngine decisionEngine(Ref ref) => const DecisionEngine();
 DeterministicComposer deterministicComposer(Ref ref) =>
     const DeterministicComposer();
 
-/// The scenario currently driving the on-device demo. A debug picker writes it;
-/// in production this provider is replaced by live signal fusion.
 @Riverpod(keepAlive: true)
 class DemoScenario extends _$DemoScenario {
   @override
   ScenarioClass build() => ScenarioClass.unknown;
 
-  // A named command reads better than a setter on a Notifier.
   // ignore: use_setters_to_change_properties
   void select(ScenarioClass scenario) => state = scenario;
 }
 
-/// The fused-context source. Phase 2 uses a scripted scenario source; Phase 5
-/// swaps in a live [ContextAggregator] without touching the orchestrator.
 @Riverpod(keepAlive: true)
 EmergencyContextRepository emergencyContextRepository(Ref ref) =>
     ScenarioContextRepository(ref.watch(demoScenarioProvider));
@@ -39,18 +35,31 @@ EmergencyContextRepository emergencyContextRepository(Ref ref) =>
 Stream<EmergencyContext> emergencyContext(Ref ref) =>
     ref.watch(emergencyContextRepositoryProvider).watch();
 
-/// The orchestrator's baseline loop: sense → classify → compose → render. Holds
-/// the current deterministic [Surface] and recomputes it whenever the fused
-/// context changes. No AI and no Safety Supervisor yet (Phase 3).
+/// Sense → classify → compose (AI with deterministic fallback) → render.
 @Riverpod(keepAlive: true)
 class SurfaceController extends _$SurfaceController {
   @override
-  Surface build() {
+  Future<Surface> build() async {
     final ctx =
         ref.watch(emergencyContextProvider).asData?.value ?? idleContext();
     final classification = ref.watch(decisionEngineProvider).classify(ctx);
-    return ref
+    final baseline = ref
         .watch(deterministicComposerProvider)
         .compose(classification, ctx);
+
+    if (ref.watch(useBackendComposeProvider)) {
+      final aiRoot = await ref
+          .read(aiComposerProvider.notifier)
+          .tryCompose(classification, ctx);
+      if (aiRoot != null) {
+        return Surface(
+          mode: classification.mode,
+          severity: classification.severity,
+          root: aiRoot,
+        );
+      }
+    }
+
+    return baseline;
   }
 }

@@ -305,6 +305,63 @@ Widget buildVehicleStatusCard(
   );
 }
 
+/// `MedicalIdCard` — blood type, allergies, and conditions shared with dispatch.
+Widget buildMedicalIdCard(BuildContext context, WidgetRef ref, A2uiNode node) {
+  final palette = ref.watch(surfacePaletteProvider);
+  final blood = ref.resolveString(node, 'bloodType') ?? '—';
+  final allergies = ref.resolveString(node, 'allergies') ?? 'None listed';
+  final conditions = ref.resolveString(node, 'conditions') ?? 'None listed';
+
+  return SosCard(
+    palette: palette,
+    tier: Severity.critical,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.favorite, size: 18, color: SosTokens.critical),
+            const SizedBox(width: SosTokens.space2),
+            Text(
+              'MEDICAL ID · SHARED',
+              style: SosText.label(SosTokens.criticalText),
+            ),
+          ],
+        ),
+        const SizedBox(height: SosTokens.space4),
+        _MedicalRow(label: 'Blood', value: blood, palette: palette),
+        const Divider(height: SosTokens.space6),
+        _MedicalRow(label: 'Allergies', value: allergies, palette: palette),
+        const Divider(height: SosTokens.space6),
+        _MedicalRow(label: 'Conditions', value: conditions, palette: palette),
+      ],
+    ),
+  );
+}
+
+class _MedicalRow extends StatelessWidget {
+  const _MedicalRow({
+    required this.label,
+    required this.value,
+    required this.palette,
+  });
+
+  final String label;
+  final String value;
+  final SurfacePalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: SosText.body(palette.textMuted)),
+        Text(value, style: SosText.headline(palette.text)),
+      ],
+    );
+  }
+}
+
 class _MetricTile extends StatelessWidget {
   const _MetricTile({required this.palette, required this.data});
 

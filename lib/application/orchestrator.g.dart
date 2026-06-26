@@ -98,18 +98,11 @@ final class DeterministicComposerProvider
 String _$deterministicComposerHash() =>
     r'6822b96d2d54d9752442951f8ad6eb7e4d61b151';
 
-/// The scenario currently driving the on-device demo. A debug picker writes it;
-/// in production this provider is replaced by live signal fusion.
-
 @ProviderFor(DemoScenario)
 final demoScenarioProvider = DemoScenarioProvider._();
 
-/// The scenario currently driving the on-device demo. A debug picker writes it;
-/// in production this provider is replaced by live signal fusion.
 final class DemoScenarioProvider
     extends $NotifierProvider<DemoScenario, ScenarioClass> {
-  /// The scenario currently driving the on-device demo. A debug picker writes it;
-  /// in production this provider is replaced by live signal fusion.
   DemoScenarioProvider._()
     : super(
         from: null,
@@ -139,9 +132,6 @@ final class DemoScenarioProvider
 
 String _$demoScenarioHash() => r'344711caa6374697cec341d3e7126fce66e64b4a';
 
-/// The scenario currently driving the on-device demo. A debug picker writes it;
-/// in production this provider is replaced by live signal fusion.
-
 abstract class _$DemoScenario extends $Notifier<ScenarioClass> {
   ScenarioClass build();
   @$mustCallSuper
@@ -160,15 +150,9 @@ abstract class _$DemoScenario extends $Notifier<ScenarioClass> {
   }
 }
 
-/// The fused-context source. Phase 2 uses a scripted scenario source; Phase 5
-/// swaps in a live [ContextAggregator] without touching the orchestrator.
-
 @ProviderFor(emergencyContextRepository)
 final emergencyContextRepositoryProvider =
     EmergencyContextRepositoryProvider._();
-
-/// The fused-context source. Phase 2 uses a scripted scenario source; Phase 5
-/// swaps in a live [ContextAggregator] without touching the orchestrator.
 
 final class EmergencyContextRepositoryProvider
     extends
@@ -178,8 +162,6 @@ final class EmergencyContextRepositoryProvider
           EmergencyContextRepository
         >
     with $Provider<EmergencyContextRepository> {
-  /// The fused-context source. Phase 2 uses a scripted scenario source; Phase 5
-  /// swaps in a live [ContextAggregator] without touching the orchestrator.
   EmergencyContextRepositoryProvider._()
     : super(
         from: null,
@@ -256,21 +238,15 @@ final class EmergencyContextProvider
 
 String _$emergencyContextHash() => r'5ff06726dea4dc19a23bf0a6d87fd0cf4bd2af9f';
 
-/// The orchestrator's baseline loop: sense → classify → compose → render. Holds
-/// the current deterministic [Surface] and recomputes it whenever the fused
-/// context changes. No AI and no Safety Supervisor yet (Phase 3).
+/// Sense → classify → compose (AI with deterministic fallback) → render.
 
 @ProviderFor(SurfaceController)
 final surfaceControllerProvider = SurfaceControllerProvider._();
 
-/// The orchestrator's baseline loop: sense → classify → compose → render. Holds
-/// the current deterministic [Surface] and recomputes it whenever the fused
-/// context changes. No AI and no Safety Supervisor yet (Phase 3).
+/// Sense → classify → compose (AI with deterministic fallback) → render.
 final class SurfaceControllerProvider
-    extends $NotifierProvider<SurfaceController, Surface> {
-  /// The orchestrator's baseline loop: sense → classify → compose → render. Holds
-  /// the current deterministic [Surface] and recomputes it whenever the fused
-  /// context changes. No AI and no Safety Supervisor yet (Phase 3).
+    extends $AsyncNotifierProvider<SurfaceController, Surface> {
+  /// Sense → classify → compose (AI with deterministic fallback) → render.
   SurfaceControllerProvider._()
     : super(
         from: null,
@@ -288,33 +264,23 @@ final class SurfaceControllerProvider
   @$internal
   @override
   SurfaceController create() => SurfaceController();
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(Surface value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<Surface>(value),
-    );
-  }
 }
 
-String _$surfaceControllerHash() => r'26522680f6261129b3cff35c9a14ff3372909749';
+String _$surfaceControllerHash() => r'b3d4fa5fb8253bf02cf71a16977440985d9cd15b';
 
-/// The orchestrator's baseline loop: sense → classify → compose → render. Holds
-/// the current deterministic [Surface] and recomputes it whenever the fused
-/// context changes. No AI and no Safety Supervisor yet (Phase 3).
+/// Sense → classify → compose (AI with deterministic fallback) → render.
 
-abstract class _$SurfaceController extends $Notifier<Surface> {
-  Surface build();
+abstract class _$SurfaceController extends $AsyncNotifier<Surface> {
+  FutureOr<Surface> build();
   @$mustCallSuper
   @override
   void runBuild() {
-    final ref = this.ref as $Ref<Surface, Surface>;
+    final ref = this.ref as $Ref<AsyncValue<Surface>, Surface>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<Surface, Surface>,
-              Surface,
+              AnyNotifier<AsyncValue<Surface>, Surface>,
+              AsyncValue<Surface>,
               Object?,
               Object?
             >;

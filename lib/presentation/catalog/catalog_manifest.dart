@@ -181,6 +181,14 @@ const List<CatalogEntry> catalogManifest = [
     inputs: ['contacts[]{name,relation,status,reachedAt}'],
   ),
   CatalogEntry(
+    name: 'MedicalIdCard',
+    family: 'status',
+    description:
+        'Medical ID shared with dispatch — blood type, allergies, and conditions '
+        'the user pre-registered. Use in cardiac and medical emergencies.',
+    inputs: ['bloodType', 'allergies?', 'conditions?'],
+  ),
+  CatalogEntry(
     name: 'VehicleStatusCard',
     family: 'status',
     description:

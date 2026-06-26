@@ -106,7 +106,72 @@ const Map<String, String> sosScreenJson = {
           "noHint": "Continue triage"
         }
       },
+      {
+        "type": "MedicalIdCard",
+        "props": { "bloodType": "O+", "allergies": "Penicillin", "conditions": "Hypertension" }
+      },
       { "type": "SOSCallButton", "props": { "emergencyNumber": "911", "callState": "idle" } }
+    ]
+  }
+  ''',
+  'flat_tire': '''
+  {
+    "type": "EmergencyRoot",
+    "props": { "tier": "moderate", "carState": "parked" },
+    "children": [
+      {
+        "type": "SeverityBanner",
+        "props": { "tier": "moderate", "label": "Moderate", "context": "Flat tire · I-280 N · narrow shoulder" }
+      },
+      {
+        "type": "GuidanceCallout",
+        "props": { "tier": "moderate", "kicker": "Stay safe", "text": "Move behind the guardrail, hazards on" }
+      },
+      {
+        "type": "StepChecklist",
+        "props": {
+          "title": "Change a tire",
+          "currentIndex": 0,
+          "steps": [
+            { "title": "Pull onto a flat, firm shoulder", "done": false },
+            { "title": "Hazards on, parking brake set", "done": false },
+            { "title": "Loosen lug nuts before jacking", "done": false }
+          ]
+        }
+      },
+      {
+        "type": "VehicleStatusCard",
+        "props": {
+          "metrics": [{ "label": "Tire pressure", "value": "Low", "tier": "high" }],
+          "profile": "2021 EV · run-flat tires · roadside plan active"
+        }
+      }
+    ]
+  }
+  ''',
+  'being_followed_night': '''
+  {
+    "type": "EmergencyRoot",
+    "props": { "tier": "high", "carState": "driving", "theme": "night" },
+    "children": [
+      {
+        "type": "SeverityBanner",
+        "props": { "tier": "high", "label": "High", "context": "Threat · you may be followed" }
+      },
+      {
+        "type": "GuidanceCallout",
+        "props": { "tier": "high", "kicker": "Do this now", "text": "Drive to the nearest police station" }
+      },
+      {
+        "type": "SafeRouteMap",
+        "props": {
+          "threatMode": true,
+          "etaLabel": "4 min",
+          "destinations": [
+            { "type": "police", "name": "Daly City Police", "detail": "Open 24h · staffed", "distance": "1.2mi", "primary": true }
+          ]
+        }
+      }
     ]
   }
   ''',
