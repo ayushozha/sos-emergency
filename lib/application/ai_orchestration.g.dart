@@ -222,7 +222,7 @@ final class AiEnabledProvider extends $NotifierProvider<AiEnabled, bool> {
   }
 }
 
-String _$aiEnabledHash() => r'bba3f22d488f093de81126f1251597f661b0e34c';
+String _$aiEnabledHash() => r'5af7ba0096cfffd228a1727da4c98f6d229aa829';
 
 /// Master switch for AI enrichment. When off, the app runs the deterministic
 /// baseline only (the Phase 2 product).
