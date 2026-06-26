@@ -80,7 +80,7 @@ components:
       enum: [neutral, moderate, high, critical]
     AppMode:
       type: string
-      enum: [triage, crash, medical, threat, roadside]
+      enum: [triage, crash, medical, threat, roadside, documentation]
     Connectivity:
       type: string
       enum: [online, degraded, offline]
@@ -89,7 +89,7 @@ components:
       enum: [driving, parked]
     ScenarioClass:
       type: string
-      enum: [crash, medical, beingFollowed, flatTire, wontStart, lockedOut, outOfGas, unsafeParked, unknown]
+      enum: [crash, medical, beingFollowed, flatTire, wontStart, lockedOut, outOfGas, unsafeParked, severeWeather, stranded, harassment, documentIncident, unknown]
     Hazard:
       type: string
       enum: [smoke, fire, weather, lowVisibility]

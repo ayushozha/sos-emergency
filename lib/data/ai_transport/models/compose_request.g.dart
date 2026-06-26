@@ -59,6 +59,10 @@ const _$ApiScenarioClassEnumMap = {
   ApiScenarioClass.lockedOut: 'lockedOut',
   ApiScenarioClass.outOfGas: 'outOfGas',
   ApiScenarioClass.unsafeParked: 'unsafeParked',
+  ApiScenarioClass.severeWeather: 'severeWeather',
+  ApiScenarioClass.stranded: 'stranded',
+  ApiScenarioClass.harassment: 'harassment',
+  ApiScenarioClass.documentIncident: 'documentIncident',
   ApiScenarioClass.unknown: 'unknown',
 };
 
@@ -75,6 +79,7 @@ const _$ApiAppModeEnumMap = {
   ApiAppMode.medical: 'medical',
   ApiAppMode.threat: 'threat',
   ApiAppMode.roadside: 'roadside',
+  ApiAppMode.documentation: 'documentation',
 };
 
 const _$ApiHazardEnumMap = {

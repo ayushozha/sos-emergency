@@ -68,5 +68,22 @@ Map<ScenarioClass, EmergencyContext> scenarioContexts() => {
     userSignals: const [UserSignal(intent: UserIntent.outOfGas)],
     position: _sf,
   ),
+  ScenarioClass.severeWeather: idleContext().copyWith(
+    userSignals: const [UserSignal(intent: UserIntent.severeWeather)],
+    hazards: const {Hazard.weather, Hazard.lowVisibility},
+    position: _sf,
+  ),
+  ScenarioClass.stranded: idleContext().copyWith(
+    userSignals: const [UserSignal(intent: UserIntent.stranded)],
+    position: _sf,
+  ),
+  ScenarioClass.harassment: idleContext().copyWith(
+    userSignals: const [UserSignal(intent: UserIntent.harassment)],
+    position: _sf,
+  ),
+  ScenarioClass.documentIncident: idleContext().copyWith(
+    userSignals: const [UserSignal(intent: UserIntent.document)],
+    position: _sf,
+  ),
   ScenarioClass.unknown: idleContext(),
 };

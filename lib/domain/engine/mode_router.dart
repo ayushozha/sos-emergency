@@ -7,10 +7,14 @@ const Map<ScenarioClass, AppMode> scenarioModeTable = {
   ScenarioClass.medical: AppMode.medical,
   ScenarioClass.beingFollowed: AppMode.threat,
   ScenarioClass.unsafeParked: AppMode.threat,
+  ScenarioClass.harassment: AppMode.threat,
   ScenarioClass.flatTire: AppMode.roadside,
   ScenarioClass.wontStart: AppMode.roadside,
   ScenarioClass.lockedOut: AppMode.roadside,
   ScenarioClass.outOfGas: AppMode.roadside,
+  ScenarioClass.stranded: AppMode.roadside,
+  ScenarioClass.severeWeather: AppMode.roadside,
+  ScenarioClass.documentIncident: AppMode.documentation,
   ScenarioClass.unknown: AppMode.triage,
 };
 

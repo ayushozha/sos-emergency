@@ -6,7 +6,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 enum ApiSeverity { neutral, moderate, high, critical }
 
-enum ApiAppMode { triage, crash, medical, threat, roadside }
+enum ApiAppMode { triage, crash, medical, threat, roadside, documentation }
 
 enum ApiConnectivity { online, degraded, offline }
 
@@ -21,6 +21,10 @@ enum ApiScenarioClass {
   lockedOut,
   outOfGas,
   unsafeParked,
+  severeWeather,
+  stranded,
+  harassment,
+  documentIncident,
   unknown,
 }
 
