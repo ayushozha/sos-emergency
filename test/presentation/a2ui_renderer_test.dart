@@ -66,4 +66,19 @@ void main() {
     expect(find.text('08'), findsNothing);
     expect(find.text('07'), findsOneWidget);
   });
+
+  testWidgets('push-to-talk enters listening state when tapped', (
+    tester,
+  ) async {
+    const node = A2uiNode(type: 'PushToTalk', props: {'state': 'idle'});
+
+    await tester.pumpWidget(_host(node));
+
+    expect(find.text('Tap to speak'), findsOneWidget);
+
+    await tester.tap(find.text('Tap to speak'));
+    await tester.pump();
+
+    expect(find.text('Listening...'), findsOneWidget);
+  });
 }
