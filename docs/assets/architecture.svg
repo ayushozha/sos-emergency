@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" role="img" aria-labelledby="title desc">
+  <title id="title">SOS Emergency system architecture</title>
+  <desc id="desc">Flutter GenUI client, FastAPI backend proxy, Featherless LLM, and Deepgram voice agent with A2UI rendering pipeline.</desc>
+  <defs>
+    <linearGradient id="criticalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#EE5A52"/>
+      <stop offset="100%" stop-color="#DD453D"/>
+    </linearGradient>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#36322E" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#3A7BD0"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#2E9E6B"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#DD453D"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="620" fill="#E7E2DB"/>
+  <rect x="24" y="24" width="912" height="572" rx="20" fill="#FBF9F6" filter="url(#shadow)"/>
+
+  <!-- Header -->
+  <rect x="24" y="24" width="912" height="72" rx="20" fill="url(#criticalGrad)"/>
+  <text x="48" y="68" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="800" fill="#FBF9F6">SOS Emergency — System Architecture</text>
+  <text x="720" y="68" font-family="Consolas, monospace" font-size="13" font-weight="600" fill="#FBF9F6" opacity="0.9">Flutter GenUI · A2UI · Voice-first</text>
+
+  <!-- Flutter client -->
+  <g filter="url(#shadow)">
+    <rect x="48" y="120" width="280" height="456" rx="16" fill="#FBF9F6" stroke="#ECE7E0" stroke-width="2"/>
+    <rect x="48" y="120" width="280" height="44" rx="16" fill="#36322E"/>
+    <rect x="48" y="148" width="280" height="16" fill="#36322E"/>
+    <text x="68" y="150" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700" fill="#FBF9F6">Flutter Client (landscape tablet)</text>
+  </g>
+
+  <!-- Presentation layer -->
+  <rect x="68" y="180" width="240" height="118" rx="12" fill="#ECE7E0"/>
+  <text x="84" y="204" font-family="Segoe UI, sans-serif" font-size="13" font-weight="800" fill="#36322E">PRESENTATION</text>
+  <text x="84" y="226" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">Surface Host · A2UI Renderer</text>
+  <text x="84" y="244" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">Widget Catalog (emergency vocabulary)</text>
+  <text x="84" y="262" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">DataModel binding · Riverpod</text>
+  <rect x="84" y="272" width="88" height="18" rx="9" fill="#2E9E6B"/>
+  <text x="94" y="285" font-family="Consolas, monospace" font-size="9" font-weight="700" fill="#FBF9F6">SOSCallButton</text>
+  <rect x="180" y="272" width="88" height="18" rx="9" fill="#DD453D"/>
+  <text x="188" y="285" font-family="Consolas, monospace" font-size="9" font-weight="700" fill="#FBF9F6">SeverityBanner</text>
+
+  <!-- Domain layer -->
+  <rect x="68" y="310" width="240" height="96" rx="12" fill="#FBF9F6" stroke="#E8B032" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="84" y="334" font-family="Segoe UI, sans-serif" font-size="13" font-weight="800" fill="#9C7414">DOMAIN (roadmap)</text>
+  <text x="84" y="356" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">Decision Engine · Safety Supervisor</text>
+  <text x="84" y="374" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">Orchestrator · freezed models</text>
+  <text x="84" y="392" font-family="Segoe UI, sans-serif" font-size="10" font-style="italic" fill="#8A8276">Safety is deterministic; AI decorates</text>
+
+  <!-- Data layer -->
+  <rect x="68" y="418" width="240" height="142" rx="12" fill="#ECE7E0"/>
+  <text x="84" y="442" font-family="Segoe UI, sans-serif" font-size="13" font-weight="800" fill="#36322E">DATA (repositories)</text>
+  <text x="84" y="464" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">AiTransport · VoiceSession</text>
+  <text x="84" y="482" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">Location · Telephony · Contacts</text>
+  <text x="84" y="500" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">Offline Guides · Vehicle Bus</text>
+  <rect x="84" y="512" width="200" height="36" rx="8" fill="#3A7BD0" opacity="0.15"/>
+  <text x="94" y="534" font-family="Consolas, monospace" font-size="10" fill="#3A7BD0">genui transport → A2UI NDJSON stream</text>
+
+  <!-- FastAPI backend -->
+  <g filter="url(#shadow)">
+    <rect x="360" y="180" width="240" height="380" rx="16" fill="#FBF9F6" stroke="#3A7BD0" stroke-width="2"/>
+    <rect x="360" y="180" width="240" height="44" rx="16" fill="#3A7BD0"/>
+    <rect x="360" y="208" width="240" height="16" fill="#3A7BD0"/>
+    <text x="380" y="210" font-family="Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#FBF9F6">FastAPI Backend Proxy</text>
+  </g>
+
+  <rect x="380" y="240" width="200" height="52" rx="10" fill="#ECE7E0"/>
+  <text x="396" y="262" font-family="Consolas, monospace" font-size="12" font-weight="700" fill="#36322E">POST /v1/chat/stream</text>
+  <text x="396" y="280" font-family="Segoe UI, sans-serif" font-size="10" fill="#8A8276">NDJSON A2UI deltas · keys server-side</text>
+
+  <rect x="380" y="304" width="200" height="52" rx="10" fill="#ECE7E0"/>
+  <text x="396" y="326" font-family="Consolas, monospace" font-size="12" font-weight="700" fill="#36322E">WS /v1/voice/agent</text>
+  <text x="396" y="344" font-family="Segoe UI, sans-serif" font-size="10" fill="#8A8276">PCM mic in · TTS audio + NDJSON out</text>
+
+  <rect x="380" y="372" width="200" height="72" rx="10" fill="#2E9E6B" opacity="0.12" stroke="#2E9E6B" stroke-width="1.5"/>
+  <text x="396" y="394" font-family="Segoe UI, sans-serif" font-size="12" font-weight="800" fill="#2E7D58">render_emergency_ui()</text>
+  <text x="396" y="412" font-family="Segoe UI, sans-serif" font-size="10" fill="#8A8276">Voice agent function call triggers</text>
+  <text x="396" y="428" font-family="Segoe UI, sans-serif" font-size="10" fill="#8A8276">existing Featherless A2UI pipeline</text>
+
+  <rect x="380" y="458" width="200" height="88" rx="10" fill="#FBF9F6" stroke="#ECE7E0" stroke-width="1.5"/>
+  <text x="396" y="480" font-family="Segoe UI, sans-serif" font-size="11" font-weight="700" fill="#36322E">Modules</text>
+  <text x="396" y="498" font-family="Consolas, monospace" font-size="10" fill="#8A8276">featherless.py · deepgram_agent.py</text>
+  <text x="396" y="514" font-family="Consolas, monospace" font-size="10" fill="#8A8276">voice_prompt.py · config.py</text>
+  <text x="396" y="530" font-family="Consolas, monospace" font-size="10" fill="#8A8276">voice_test.html harness</text>
+
+  <!-- External services -->
+  <g filter="url(#shadow)">
+    <rect x="632" y="120" width="296" height="200" rx="16" fill="#FBF9F6" stroke="#ECE7E0" stroke-width="2"/>
+    <rect x="632" y="120" width="296" height="44" rx="16" fill="#36322E"/>
+    <rect x="632" y="148" width="296" height="16" fill="#36322E"/>
+    <text x="652" y="150" font-family="Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#FBF9F6">Featherless.ai (LLM)</text>
+  </g>
+  <text x="652" y="188" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">OpenAI-compatible chat completions</text>
+  <text x="652" y="206" font-family="Consolas, monospace" font-size="11" fill="#36322E">Qwen/Qwen2.5-72B-Instruct</text>
+  <text x="652" y="228" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">Streams structured A2UI JSON layout</text>
+  <text x="652" y="246" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">Catalog + persona system prompt</text>
+  <rect x="652" y="260" width="256" height="44" rx="8" fill="#ECE7E0"/>
+  <text x="664" y="286" font-family="Consolas, monospace" font-size="10" fill="#3A7BD0">{"delta":"..."} → {"done":true}</text>
+
+  <g filter="url(#shadow)">
+    <rect x="632" y="340" width="296" height="220" rx="16" fill="#FBF9F6" stroke="#DD453D" stroke-width="2"/>
+    <rect x="632" y="340" width="296" height="44" rx="16" fill="url(#criticalGrad)"/>
+    <rect x="632" y="368" width="296" height="16" fill="url(#criticalGrad)"/>
+    <text x="652" y="370" font-family="Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#FBF9F6">Deepgram Voice Agent</text>
+  </g>
+  <text x="652" y="408" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">STT → think LLM → TTS (one WebSocket)</text>
+  <text x="652" y="426" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">Hands-free emergency dispatcher persona</text>
+  <text x="652" y="444" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">Calls render_emergency_ui when visuals help</text>
+  <rect x="652" y="458" width="120" height="22" rx="6" fill="#ECE7E0"/>
+  <text x="662" y="473" font-family="Consolas, monospace" font-size="9" fill="#36322E">transcript</text>
+  <rect x="780" y="458" width="120" height="22" rx="6" fill="#ECE7E0"/>
+  <text x="792" y="473" font-family="Consolas, monospace" font-size="9" fill="#36322E">audio (24kHz)</text>
+  <rect x="652" y="490" width="256" height="52" rx="8" fill="#DD453D" opacity="0.1" stroke="#DD453D"/>
+  <text x="664" y="512" font-family="Segoe UI, sans-serif" font-size="10" font-weight="700" fill="#C63A33">UI JSON never read aloud</text>
+  <text x="664" y="528" font-family="Segoe UI, sans-serif" font-size="10" fill="#8A8276">render_start · delta · done on same socket</text>
+
+  <!-- Arrows -->
+  <path d="M328 268 L360 268" stroke="#3A7BD0" stroke-width="2.5" marker-end="url(#arrow)" fill="none"/>
+  <text x="332" y="258" font-family="Segoe UI, sans-serif" font-size="9" fill="#3A7BD0">REST/NDJSON</text>
+
+  <path d="M328 330 L360 330" stroke="#DD453D" stroke-width="2.5" marker-end="url(#arrowRed)" fill="none"/>
+  <text x="332" y="320" font-family="Segoe UI, sans-serif" font-size="9" fill="#DD453D">WebSocket</text>
+
+  <path d="M600 266 L632 210" stroke="#3A7BD0" stroke-width="2" marker-end="url(#arrow)" fill="none"/>
+  <path d="M600 406 L632 430" stroke="#DD453D" stroke-width="2" marker-end="url(#arrowRed)" fill="none"/>
+  <path d="M828 340 L828 320 L600 320 L600 406" stroke="#2E9E6B" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrowGreen)" fill="none"/>
+  <text x="700" y="308" font-family="Segoe UI, sans-serif" font-size="9" fill="#2E9E6B">function call → A2UI</text>
+
+  <!-- Loop annotation -->
+  <rect x="48" y="588" width="864" height="1" fill="#ECE7E0"/>
+  <text x="48" y="608" font-family="Segoe UI, sans-serif" font-size="11" fill="#8A8276">
+    Sense → Classify → Compose (catalog) → Validate → Render Surface → React (DataModel feeds back to agent)
+  </text>
+</svg>

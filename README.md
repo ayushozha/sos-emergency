@@ -1,201 +1,353 @@
-# GenUI Hackathon Starter 🦄
+![SOS Emergency banner](docs/assets/banner.png)
 
-[![style: very good analysis][very_good_analysis_badge]][very_good_analysis_link]
-[![License: MIT][license_badge]][license_link]
+# SOS Emergency
 
-A starter Flutter app for building **Generative UI** (GenUI) experiences. Instead of the model replying with plain text, it replies with a _user interface_: buttons, lists, cards, forms, and more, rendered live as real Flutter widgets.
+[![style: very good analysis](https://img.shields.io/badge/style-very_good_analysis-B22C89.svg)](https://pub.dev/packages/very_good_analysis)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Flutter](https://img.shields.io/badge/Flutter-3.12%2B-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.12%2B-0175C2?logo=dart&logoColor=white)](https://dart.dev)
+[![GenUI](https://img.shields.io/badge/GenUI-A2UI%20v0.9-2E9E6B)](https://pub.dev/packages/genui)
+[![Platform](https://img.shields.io/badge/Platform-landscape%20tablet%20%7C%20desktop-36322E)](tech_spec.md)
 
-This template wires up a model hosted on [Featherless.ai](https://featherless.ai) to Flutter's [`genui`](https://pub.dev/packages/genui) package so you can start shaping that experience right away. You bring two things: a **catalog** of widgets the model is allowed to use, and a **system prompt** that tells it how to behave. The template handles everything in between.
+**A generative-UI emergency co-pilot for landscape tablets in the car.** Instead of fixed menus, a built-in agent reads the situation and composes the right interface in real time — choosing content, layout, and the single safest next action from a design-owned widget catalog.
 
-New to GenUI? That's fine. This README walks you through it from scratch, including installing Flutter.
-
----
-
-## What is GenUI, in one minute
-
-A normal chat app sends your message to a model and gets text back. GenUI sends your message to a model and gets back a structured description of a UI (in a format called **A2UI**, "agent-to-UI"). The `genui` package turns that description into live Flutter widgets on screen.
-
-The model can only ever describe widgets you've told it about. That list of allowed widgets is the **catalog**. Because the same catalog is fed to the model _and_ used to render, the model can never ask for something your app can't draw.
-
-So the two knobs you'll touch most are:
-
-- **`lib/catalog.dart`** — _what_ the model can build (the widget vocabulary).
-- **`lib/prompt.dart`** — _how_ the model should behave (persona, tone, rules).
-
-Everything else in this template is plumbing that connects those two things to Featherless and to the screen.
+> Voice-first · Context-aware · Safety-first escalation · Flutter GenUI (A2UI)
 
 ---
 
-## Getting started
+## Table of contents
 
-This section assumes you have **never installed Flutter**. We'll run the app as a **native desktop app**, which is the quickest path: no simulators or devices needed. Follow the instructions for your operating system below.
+- [Overview](#overview)
+- [The core bet](#the-core-bet)
+- [MVP scenarios](#mvp-scenarios)
+- [Status at a glance](#status-at-a-glance)
+- [Architecture](#architecture)
+- [Repository map](#repository-map)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Testing & validation](#testing--validation)
+- [Design system](#design-system)
+- [Documentation & brainstorm sources](#documentation--brainstorm-sources)
+- [Roadmap](#roadmap)
+- [Privacy & safety constraints](#privacy--safety-constraints)
+- [Contributing](#contributing)
+- [License](#license)
 
-### 1. Install Flutter
+---
 
-<details open>
-<summary><strong>macOS</strong></summary>
+## Overview
 
-1. Install [Xcode](https://apps.apple.com/us/app/xcode/id497799835) from the App Store (required to build macOS apps). After it installs, open it once so it can finish setting up, then run:
-   ```sh
-   sudo xcodebuild -runFirstLaunch
-   ```
-2. Install Flutter. If you have [Homebrew](https://brew.sh):
-   ```sh
-   brew install --cask flutter
-   ```
-   Otherwise, follow the manual steps at [docs.flutter.dev/get-started/install/macos](https://docs.flutter.dev/get-started/install/macos).
-3. Confirm everything is healthy. This checks your toolchain and tells you if anything is missing:
-   ```sh
-   flutter doctor
-   ```
-   You want green checkmarks for **Flutter** and **Xcode** at minimum. Don't worry if Android/Chrome show warnings; you don't need them for macOS.
+In a crisis behind the wheel, cognitive load spikes: panic, impaired fine motor control, and decision paralysis. Traditional apps — nested menus, fixed screens, lots of reading — fail exactly when they are needed most.
 
-</details>
+**SOS Emergency** (In-Car SOS) is a single emergency **Surface** on a landscape tablet (iPad / Android tablet; automotive head unit later). A built-in AI agent decides what to put on screen based on what is actually happening.
 
-<details>
-<summary><strong>Windows</strong></summary>
+The product is built on **Generative UI (GenUI)**. The AI does not write Dart code or draw pixels at runtime. It acts as an **orchestrator**: it reads context and intent, then composes a layout by selecting from a fixed, design-owned **Widget Catalog** and streaming a structured layout description (**A2UI / JSON**) to the Flutter renderer. If a component is not in the catalog, the AI cannot produce it — which keeps brand, accessibility, and safety bounds intact while still letting the screen reshape itself for each situation.
 
-1. Install [Visual Studio](https://visualstudio.microsoft.com/downloads/) (the IDE, not VS Code) with the **"Desktop development with C++"** workload. This is required to build Windows desktop apps.
-2. Install Flutter. If you have [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) (built into Windows 10/11), open PowerShell and run:
-   ```powershell
-   winget install --id=Google.Flutter -e
-   ```
-   Otherwise, follow the manual steps at [docs.flutter.dev/get-started/install/windows](https://docs.flutter.dev/get-started/install/windows). After installing, close and reopen your terminal so `flutter` is on your `PATH`.
-3. Confirm everything is healthy. This checks your toolchain and tells you if anything is missing:
-   ```powershell
-   flutter doctor
-   ```
-   You want green checkmarks for **Flutter** and **Visual Studio** at minimum. Don't worry if Android/Chrome show warnings; you don't need them for Windows desktop.
+### Three jobs, in order
 
-</details>
+1. **Identify** — Determine whether this is a car problem, crash, medical event, personal-safety threat, or environmental hazard — and how severe it is.
+2. **Make safety effortless** — Put emergency services, live location sharing, and trusted-contact alerts within a single tap (or no tap at all). Never be clever before safety is handled.
+3. **Assist & document** — Once immediate danger has passed, guide the user and help document the incident.
 
-<details>
-<summary><strong>Linux</strong></summary>
+### Design principles (from product brainstorms)
 
-1. Install the build dependencies for Linux desktop apps. On Debian/Ubuntu:
-   ```sh
-   sudo apt-get update
-   sudo apt-get install -y curl git unzip xz-utils zip libglu1-mesa \
-     clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
-   ```
-   (On Fedora/Arch the package names differ; see the Flutter docs linked below.)
-2. Install Flutter. The simplest cross-distro option is [snap](https://snapcraft.io/):
-   ```sh
-   sudo snap install flutter --classic
-   ```
-   Otherwise, follow the manual steps at [docs.flutter.dev/get-started/install/linux](https://docs.flutter.dev/get-started/install/linux).
-3. Confirm everything is healthy. This checks your toolchain and tells you if anything is missing:
-   ```sh
-   flutter doctor
-   ```
-   You want green checkmarks for **Flutter** and **Linux toolchain** at minimum. Don't worry if Android/Chrome show warnings; you don't need them for Linux desktop.
+- **Voice-first and low-friction** — Assume the user may be shaking, injured, driving, panicked, or unable to type.
+- **Context-aware** — Use speed, GPS, vehicle connection, time of day, weather, battery, and location type to simplify the flow.
+- **Escalation-oriented** — When danger is high, prioritize emergency services, trusted contacts, and live location sharing.
+- **Documentation after safety** — Photos, notes, insurance, and reports matter — but only after the user is safe.
+- **Never route home during threats** — For being followed or stalking concerns, route to a police station, fire station, or busy public place.
+- **Safe defaults obvious** — Do not change a tire on a dangerous shoulder; do not chase a hit-and-run driver; do not continue driving after severe medical symptoms.
 
-</details>
+---
 
-This project targets the Flutter SDK that ships **Dart `^3.12.1`** (see [pubspec.yaml](pubspec.yaml)). If `flutter doctor` reports an older Dart, run `flutter upgrade`.
+## The core bet
 
-### 2. Get a Featherless API key
+> The right interface for a flat tire, a serious crash, and a stalker following you home are completely different screens.
 
-The app talks to a model hosted on Featherless, which needs an API key.
+Rather than building and maintaining dozens of fixed flows, we give the AI a vocabulary of emergency components and let it assemble the right one for the moment — **always with the safest action largest and first**.
 
-1. Go to [featherless.ai](https://featherless.ai) and sign in.
-2. Open your account settings and create an API key.
-3. Copy the key somewhere safe. You'll paste it in the next step.
+The architectural invariant (see [tech_spec.md](tech_spec.md)):
 
-The key is **not** stored in the project. You pass it in at run time, so it never ends up in source control.
+> **Safety is deterministic. The AI only decorates.**
 
-### 3. Install the project's dependencies
+The LLM is treated as an *untrusted, best-effort, possibly-slow, possibly-offline* component. Emergency call placement, location sharing, threat routing, and crash escalation are owned by a deterministic decision engine and safety supervisor — not the model.
 
-From the project root:
+---
 
-```sh
+## MVP scenarios
+
+The hackathon MVP targets eight high-frequency, high-stakes situations from the scenario brainstorms:
+
+| Scenario | Typical car state | Severity | Primary app loop |
+|----------|-------------------|----------|------------------|
+| Flat tire / blowout | Driving → parked | High | Safe pull-over guidance, roadside assist, share location |
+| Car won't start | Parked | Moderate | Jump-start checklist, fuel/charger locator, tow summary |
+| Serious crash | Parked | Critical | Auto-escalation countdown, 911, notify contacts, I'm-safe abort |
+| Medical emergency (e.g. heart attack symptoms) | Driving or parked | Critical | Stop-driving guidance, 911, medical ID, contact alerts |
+| Being followed / road rage | Driving | Critical | Safe-route to police precinct, live location, no "route home" |
+| Locked out (child/pet inside) | Parked | Critical | 911 path, temperature danger alerts, unlock guidance |
+| Out of gas / EV low | Driving → parked | Moderate | Nearest station/charger, roadside assist |
+| Unsafe parked location | Parked | High | Well-lit public place routing, share location, check-in |
+
+Opening triage presents a low-friction choice grid: car problem, crash, medical, I feel unsafe, being followed, locked out, roadside help, document incident — plus push-to-talk voice entry.
+
+---
+
+## Status at a glance
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Widget catalog & A2UI renderer | **Implemented** | Emergency components in `lib/presentation/catalog/` |
+| Design tokens (day/night, severity tiers) | **Implemented** | `lib/app/theme/sos_tokens.dart`, [design doc](docs/design/sos_design_system.md) |
+| Golden screen fixtures | **Implemented** | Opening triage, crash, being followed, medical, won't-start |
+| GenUI session + Featherless client | **Implemented** | Direct Featherless streaming from Flutter |
+| FastAPI backend proxy | **Implemented** | Chat stream + voice agent; keys server-side |
+| Deepgram voice agent + A2UI bridge | **Implemented** | `render_emergency_ui` → Featherless pipeline |
+| Browser voice/chat harness | **Implemented** | `backend/voice_test.html` |
+| Decision engine & safety supervisor | **Roadmap** | Spec'd in [tech_spec.md](tech_spec.md) Phase 0–2 |
+| Live telephony / GPS / vehicle bus | **Roadmap** | Repository interfaces planned |
+| Automotive head-unit projection | **Roadmap** | Phase 5 in tech spec |
+| Offline-first guide packs | **Partial** | Catalog fallbacks; full offline engine TBD |
+
+---
+
+## Architecture
+
+High-level data flow: the Flutter client hosts a GenUI **Surface**; the backend holds API keys and bridges voice to the same A2UI pipeline used for chat.
+
+![SOS Emergency architecture diagram](docs/assets/architecture.svg)
+
+### GenUI pillars (from design research)
+
+| Pillar | Role in SOS Emergency |
+|--------|-------------------------|
+| **Surface** | Full-screen landscape emergency canvas; persistent SOS rail |
+| **Catalog** | Design-owned emergency widget vocabulary (911, severity, maps, checklists…) |
+| **DataModel** | Client-side state fed back to the agent on each interaction loop |
+| **Transport** | NDJSON A2UI stream (REST via backend or direct Featherless) + WebSocket voice |
+
+### Backend endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /health` | Service health |
+| `POST /v1/chat/stream` | Stream A2UI NDJSON deltas from Featherless |
+| `GET /v1/voice/health` | Voice layer readiness (Deepgram key configured) |
+| `WS /v1/voice/agent` | Full-duplex voice: PCM in, TTS + A2UI events out |
+
+See [backend/README.md](backend/README.md) and [backend/VOICE_AGENT_SPEC.md](backend/VOICE_AGENT_SPEC.md) for wire contracts.
+
+---
+
+## Repository map
+
+```
+.
+├── lib/
+│   ├── app/                    # MaterialApp, SOS theme tokens
+│   ├── domain/models/          # A2UI node models (freezed)
+│   ├── data/ai_transport/      # AI transport repository (mock + interface)
+│   ├── presentation/
+│   │   ├── catalog/            # Emergency widget catalog (the AI vocabulary)
+│   │   └── surface/            # Surface host, A2UI renderer, DataModel
+│   ├── model/                  # ModelClient + Featherless implementation
+│   ├── home_page.dart          # Demo GenUI session screen
+│   └── conversation.dart       # GenUiSession pipeline
+├── backend/
+│   ├── app/                    # FastAPI: chat stream, voice agent, config
+│   ├── voice_test.html         # Browser harness for chat + voice
+│   └── spec/                   # Voice agent design notes
+├── docs/
+│   ├── assets/                 # README banner + architecture.svg
+│   ├── brainstorm/             # Product & GenUI research PDFs + notes
+│   └── design/                 # SOS design system extraction
+├── test/
+│   ├── golden/                 # Visual regression for key screens
+│   └── fixtures/               # Hand-authored A2UI scenario JSON
+└── tech_spec.md                # Full engineering spec & phased plan
+```
+
+---
+
+## Quick start
+
+### Prerequisites
+
+- **Flutter SDK** with Dart `^3.12.1` ([install guide](https://docs.flutter.dev/get-started/install))
+- **Python 3.10+** for the backend proxy
+- API keys: [Featherless](https://featherless.ai) (chat/A2UI), [Deepgram](https://deepgram.com) (voice — backend only)
+
+### 1. Flutter app (desktop demo)
+
+```powershell
+# From project root
 flutter pub get
-```
+dart run build_runner build --delete-conflicting-outputs
 
-### 4. Run the app
-
-Enable desktop support for your platform once (harmless if already enabled):
-
-```sh
-# macOS
-flutter config --enable-macos-desktop
-# Windows
+# Windows desktop (enable once if needed)
 flutter config --enable-windows-desktop
-# Linux
-flutter config --enable-linux-desktop
+flutter run -d windows --dart-define=FEATHERLESS_API_KEY=your_featherless_key
 ```
 
-Then run, passing your Featherless key in via `--dart-define`. Use the device matching your OS:
+The demo renders a GenUI surface on the left and raw A2UI JSON on the right. Use the text input to describe an emergency scenario and watch the model compose catalog widgets.
 
-```sh
-# macOS
-flutter run -d macos --dart-define=FEATHERLESS_API_KEY=your_key_here
-# Windows
-flutter run -d windows --dart-define=FEATHERLESS_API_KEY=your_key_here
-# Linux
-flutter run -d linux --dart-define=FEATHERLESS_API_KEY=your_key_here
+> **Security note:** `--dart-define` embeds the key in the local build. For production or demos, prefer the backend proxy so keys never ship in the app binary.
+
+### 2. Backend proxy (recommended for keys + voice)
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+Copy-Item .env.example .env
+# Edit .env: FEATHERLESS_API_KEY, DEEPGRAM_API_KEY
+
+uvicorn app.main:app --reload --port 8000
 ```
 
-Replace `your_key_here` with the key from step 2. The first build takes a minute or two; later runs are faster.
+Health checks:
 
-> **Windows note:** In PowerShell the command above works as-is. If your key contains special characters, wrap the whole `--dart-define` value in quotes: `"--dart-define=FEATHERLESS_API_KEY=your_key_here"`.
+```powershell
+curl http://localhost:8000/health
+curl http://localhost:8000/v1/voice/health
+```
 
-> **Why `--dart-define`?** It injects the key as a compile-time constant the app reads via `String.fromEnvironment('FEATHERLESS_API_KEY')` (see [lib/model/featherless_model_client.dart](lib/model/featherless_model_client.dart)). This keeps your secret out of the codebase. If you forget the flag or the key is invalid, the app shows a SnackBar with the error instead of a blank screen.
+### 3. Voice test harness (no Flutter build)
 
-Once it's running, type a request into the box at the bottom, for example _"Make a list of 3 fruits with their emojis, and a button to add a new random fruit to the list"_ The left side shows the rendered UI; the right side shows the raw A2UI JSON the model produced, so you can see exactly what it asked for.
+```powershell
+cd backend
+python -m http.server 7861
+# Open http://localhost:7861/voice_test.html (mic requires localhost)
+```
 
-> **Tip:** Tired of typing the long command? Most editors let you save it. In VS Code, add a `launch.json` config with `"args": ["--dart-define=FEATHERLESS_API_KEY=your_key_here"]`.
-
----
-
-## How the project is laid out
-
-Here's every meaningful file in [lib/](lib/) and what it's for. The files you'll edit most are at the top.
-
-### The files you'll probably customize
-
-| File                                   | What it's for                                                                                                                                                                                                                                                                                                                                        |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`lib/catalog.dart`](lib/catalog.dart) | **Defines the widgets the model knows how to use.** This is your GenUI vocabulary. It ships with `BasicCatalogItems` (a ready-made set of common widgets). Add your own components here to expand what the model can build. The catalog feeds both the renderer and the system prompt, so the model can only ever request widgets you've registered. |
-| [`lib/prompt.dart`](lib/prompt.dart)   | **Defines the overall interaction.** A plain system-prompt string: the assistant's persona, tone, and any domain rules. You focus on _what_ the assistant should do; the framework already teaches the model _how_ to emit valid A2UI, so you don't have to.                                                                                         |
-
-Start here. You can build a surprising amount just by editing these two.
-
-### The GenUI plumbing (you might edit this)
-
-| File                                                         | What it's for                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`lib/model/model_client.dart`](lib/model/model_client.dart) | A model-agnostic `ModelClient` interface. It owns the conversation history and exposes the latest model response. Swap in a different model by writing a new subclass; nothing else has to change.                                                                                                            |
-| [`lib/conversation.dart`](lib/conversation.dart)             | `GenUiSession`: the heart of the pipeline. It ties together the GenUI `SurfaceController` (which renders), the transport (which carries A2UI chunks), the `Conversation` (which tracks state), and the `ModelClient`. It builds and disposes all four as a single unit so the UI doesn't have to juggle them. |
-
-### The screen and widgets for the demo UI (feel free to replace all this)
-
-| File                                                                     | What it's for                                                                                                                                                                  |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`lib/home_page.dart`](lib/home_page.dart)                               | The main screen. Creates the catalog and session, shows the rendered surface on the left and the raw A2UI source on the right, and feeds your typed messages into the session. |
-| [`lib/app.dart`](lib/app.dart)                                           | The root `MaterialApp`. Theming and top-level app config go here.                                                                                                              |
-| [`lib/main.dart`](lib/main.dart)                                         | The `main()` entry point that boots the app.                                                                                                                                   |
-| [`lib/widgets/message_input.dart`](lib/widgets/message_input.dart)       | The text box and send button at the bottom of the screen.                                                                                                                      |
-| [`lib/widgets/a2ui_source_view.dart`](lib/widgets/a2ui_source_view.dart) | The right-hand panel that shows the raw A2UI JSON as it streams in. Handy for learning and debugging.                                                                          |
-| [`lib/widgets/widgets.dart`](lib/widgets/widgets.dart)                   | A barrel file that re-exports the widgets above for tidy imports.                                                                                                              |
+Serve `voice_test.html` while the FastAPI server runs on port 8000. The harness exercises chat streaming and the voice agent WebSocket.
 
 ---
 
-## Where to go next
+## Configuration
 
-- **Teach the model new tricks.** Add a custom component to [`lib/catalog.dart`](lib/catalog.dart). Once it's in the catalog, the model can use it.
-- **Change the personality.** Rewrite the string in [`lib/prompt.dart`](lib/prompt.dart) to give the assistant a focus, a tone, or domain rules.
-- **Try a different model.** Change `_defaultModel` in [`lib/model/featherless_model_client.dart`](lib/model/featherless_model_client.dart), or write a new `ModelClient` subclass for a different provider.
-- **Learn the framework.** See the [`genui` package on pub.dev](https://pub.dev/packages/genui) for the full catalog API and A2UI format.
+### Flutter compile-time defines
 
-Happy building.
+| Define | Default | Purpose |
+|--------|---------|---------|
+| `FEATHERLESS_API_KEY` | _(empty)_ | Direct Featherless access from `FeatherlessModelClient` |
+| Model override | `Qwen/Qwen2.5-72B-Instruct` | Constructor / client default |
+
+### Backend environment (`.env`)
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `FEATHERLESS_API_KEY` | Yes (chat) | OpenAI-compatible completions for A2UI |
+| `DEEPGRAM_API_KEY` | Yes (voice) | Deepgram Voice Agent WebSocket |
+| `FEATHERLESS_MODEL` | No | Override default model slug |
+| `CORS_ORIGINS` | No | Allowed browser origins for voice harness |
+
+Copy [backend/.env.example](backend/.env.example) to `backend/.env`. **Never commit `.env`.**
 
 ---
 
-Developed with 💙 by [Very Good Ventures][very_good_ventures_link] 🦄
+## Testing & validation
 
-[license_badge]: https://img.shields.io/badge/license-MIT-blue.svg
-[license_link]: https://opensource.org/licenses/MIT
-[very_good_analysis_badge]: https://img.shields.io/badge/style-very_good_analysis-B22C89.svg
-[very_good_analysis_link]: https://pub.dev/packages/very_good_analysis
-[very_good_ventures_link]: https://verygood.ventures
+Run the full quality gate from the project root:
+
+```powershell
+dart run build_runner build --delete-conflicting-outputs
+dart analyze
+dart format .
+flutter test
+```
+
+Golden tests reproduce design-handoff screens at tablet landscape breakpoints:
+
+```powershell
+flutter test test/golden/
+```
+
+Key fixtures live in [test/fixtures/sos_screens.dart](test/fixtures/sos_screens.dart) — hand-authored A2UI JSON composed entirely from registered catalog components.
+
+---
+
+## Design system
+
+Visual language: **soft, tactile, premium-medical** — calm-but-urgent, glanceable, voice-first. Severity is conveyed by hue, glyph, border weight, and motion — never color alone.
+
+| Token | Day value | Usage |
+|-------|-----------|-------|
+| Ground | `#E7E2DB` | App background |
+| Surface | `#FBF9F6` | Cards, panels |
+| Text | `#36322E` | Primary copy |
+| Safe | `#2E9E6B` | Positive / completed actions |
+| Critical | `#DD453D` | Highest severity tier |
+
+Typography: **Hanken Grotesk** (display/body), **JetBrains Mono** (telemetry, ETAs, countdowns).
+
+Full catalog and component specs: [docs/design/sos_design_system.md](docs/design/sos_design_system.md).
+
+### Screen gallery (golden references)
+
+| Screen | Fixture key |
+|--------|-------------|
+| Opening triage | `opening_triage_day` |
+| Serious crash (critical) | `serious_crash_day` / `serious_crash_night` |
+| Being followed (high, driving) | `being_followed_day` |
+| Suspected heart attack | `suspected_heart_attack_day` |
+| Won't start (offline) | `wont_start_offline_day` |
+
+Golden PNGs: [test/golden/goldens/](test/golden/goldens/).
+
+---
+
+## Documentation & brainstorm sources
+
+Product vision and scenario research that shaped this repo:
+
+| Document | Contents |
+|----------|----------|
+| [InCar_SOS_GenUI_Product_Design.pdf](docs/brainstorm/InCar_SOS_GenUI_Product_Design.pdf) | Product framing, GenUI core bet, MVP scope |
+| [car_emergency_app_scenario_brainstorm.pdf](docs/brainstorm/car_emergency_app_scenario_brainstorm.pdf) | Scenario categories, safety principles, triage choices |
+| [incar_emergency_assistant_brainstorming.pdf](docs/brainstorm/incar_emergency_assistant_brainstorming.pdf) | Scenario matrix, threat tiers, action loops |
+| [flutter_genui_design_research_doc.pdf](docs/brainstorm/flutter_genui_design_research_doc.pdf) | Surface, Catalog, DataModel, Transport pillars |
+| [2026-06-24-featherless-model-client-brainstorm-doc.md](docs/brainstorm/2026-06-24-featherless-model-client-brainstorm-doc.md) | Featherless `ModelClient` integration decisions |
+| [tech_spec.md](tech_spec.md) | Engineering architecture, safety supervisor, phased plan |
+| [backend/VOICE_AGENT_SPEC.md](backend/VOICE_AGENT_SPEC.md) | Voice ↔ A2UI bridge specification |
+
+---
+
+## Roadmap
+
+Phased delivery (detail in [tech_spec.md](tech_spec.md)):
+
+1. **Phase 0–1** — Deterministic safety shell, catalog, renderer, golden screens *(in progress)*
+2. **Phase 2** — Context fusion (location, vehicle state, connectivity)
+3. **Phase 3** — AI composer with supervisor validation and offline fallbacks
+4. **Phase 4** — Voice-first hands-free loop integrated in Flutter Surface
+5. **Phase 5** — Automotive head-unit / projection targets
+
+---
+
+## Privacy & safety constraints
+
+- **Not a replacement for emergency services.** The app routes and assists; it does not diagnose or give medical/legal advice.
+- **API keys** belong in `backend/.env` or local `--dart-define` — never in source control.
+- **Location, contacts, and call placement** will require explicit platform permissions when live integrations ship.
+- **Threat scenarios** enforce safe routing rules (e.g. no "navigate home" when being followed).
+
+---
+
+## Contributing
+
+This repo follows feature-first clean architecture with **Riverpod (codegen), Freezed, go_router, and the repository pattern**. See [AGENTS.md](AGENTS.md) and [CLAUDE.md](CLAUDE.md) for agent and contributor conventions.
+
+Invariants to preserve:
+
+- Widget catalog is the AI's only vocabulary — register components before prompting the model to use them.
+- Safety-critical actions stay deterministic and one-tap reachable.
+- Landscape tablet is the canonical design surface; test at those breakpoints first.
+- Regenerate code (`build_runner`) after editing `@riverpod`, `@freezed`, or `@JsonSerializable` files.
+
+---
+
+## License
+
+[MIT License](LICENSE) — Copyright (c) 2026 Very Good Ventures.
