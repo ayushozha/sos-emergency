@@ -29,3 +29,8 @@ class ChatRequest(BaseModel):
 
     # Optional per-request model override. Falls back to the server default.
     model: str | None = None
+
+    # Client catalog version (e.g. "2026.06.0"). Logged for observability as
+    # the catalog evolves; the backend stays catalog-agnostic and never acts on
+    # it — the catalog and prompt are built entirely on the client.
+    catalog_version: str | None = Field(default=None, alias="catalogVersion")
