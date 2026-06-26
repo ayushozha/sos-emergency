@@ -81,6 +81,12 @@ def _upstream_error_response(error: httpx.HTTPStatusError) -> JSONResponse:
 
 @app.post("/v1/chat/stream")
 async def chat_stream(req: ChatRequest, request: Request):
+    logger.info(
+        "compose request: catalog=%s model=%s turns=%d",
+        req.catalog_version,
+        req.model,
+        len(req.messages),
+    )
     if not settings.featherless_api_key:
         return JSONResponse(
             status_code=503,
