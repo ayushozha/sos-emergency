@@ -52,6 +52,10 @@ app.*.map.json
 # Local MCP server descriptors (agent tooling, not app source)
 mcps/
 
+# Agent tooling (not app source)
+.agents/
+skills-lock.json
+
 # OS generated
 Thumbs.db
 ehthumbs.db
