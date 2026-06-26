@@ -1,16 +1,16 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sos_emergency/app/theme/sos_tokens.dart';
 import 'package:sos_emergency/app/theme/surface_palette.dart';
 import 'package:sos_emergency/domain/models/a2ui_node.dart';
 import 'package:sos_emergency/domain/models/severity.dart';
+import 'package:sos_emergency/presentation/catalog/shared/sos_chrome.dart';
 import 'package:sos_emergency/presentation/surface/binding_resolver.dart';
 import 'package:sos_emergency/presentation/surface/surface_theme_providers.dart';
 
 /// `SeverityBanner` — the tier indicator pinned to the top of the surface.
-/// Colour + label + border weight together (glyph + motion added in Phase 1).
-///
-/// Inputs: `tier` (token), `label`, `context?`.
+/// Conveys severity by colour + label + glyph + border weight together (the
+/// four redundant cues). Inputs: `tier`, `label`, `context?`.
 Widget buildSeverityBanner(BuildContext context, WidgetRef ref, A2uiNode node) {
   final palette = ref.watch(surfacePaletteProvider);
   final tier = Severity.fromToken(ref.resolveString(node, 'tier'));
@@ -28,27 +28,28 @@ Widget buildSeverityBanner(BuildContext context, WidgetRef ref, A2uiNode node) {
     ),
     child: Row(
       children: [
+        Icon(_glyphFor(tier), color: style.accent, size: 26),
+        const SizedBox(width: SosTokens.space3),
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontFamily: SosTokens.fontDisplay,
             fontSize: 22,
             fontWeight: FontWeight.w900,
-            color: style.text,
-          ),
+          ).copyWith(color: style.text),
         ),
         const Spacer(),
         if (statusContext != null)
-          Text(
-            statusContext,
-            style: TextStyle(
-              fontFamily: SosTokens.fontDisplay,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: palette.textMuted,
-            ),
-          ),
+          Text(statusContext, style: SosText.body(palette.textMuted)),
       ],
     ),
   );
 }
+
+/// Per-tier glyph — part of the redundant severity signal (never colour alone).
+IconData _glyphFor(Severity tier) => switch (tier) {
+  Severity.moderate => Icons.info_outline,
+  Severity.high => Icons.warning_amber_rounded,
+  Severity.critical => Icons.dangerous_outlined,
+  Severity.neutral => Icons.circle_outlined,
+};

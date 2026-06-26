@@ -1,6 +1,6 @@
 import 'package:genui/genui.dart';
-import 'package:sos_emergency/model/model_client.dart';
 import 'package:googleai_dart/googleai_dart.dart';
+import 'package:sos_emergency/model/model_client.dart';
 
 /// A [ModelClient] backed by Google's Gemini models.
 ///

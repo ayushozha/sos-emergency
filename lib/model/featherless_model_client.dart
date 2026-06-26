@@ -1,6 +1,6 @@
 import 'package:genui/genui.dart' hide ChatMessage;
-import 'package:sos_emergency/model/model_client.dart';
 import 'package:openai_dart/openai_dart.dart' hide MessageRole;
+import 'package:sos_emergency/model/model_client.dart';
 
 /// A [ModelClient] backed by a model hosted on Featherless.ai.
 ///

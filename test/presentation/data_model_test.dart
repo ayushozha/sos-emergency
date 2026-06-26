@@ -17,9 +17,10 @@ void main() {
     });
 
     test('writeAll merges multiple paths', () {
-      container
-          .read(dataModelProvider.notifier)
-          .writeAll({'/a': 1, '/b': 'two'});
+      container.read(dataModelProvider.notifier).writeAll({
+        '/a': 1,
+        '/b': 'two',
+      });
       final state = container.read(dataModelProvider);
       expect(state['/a'], 1);
       expect(state['/b'], 'two');
