@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:sos_emergency/domain/models/emergency_context.dart';
 
-/// Streams vehicle-bus / OBD-II snapshots (airbag, fuel/charge, tire pressure,
-/// door locks). On AAOS this is backed by `CarPropertyManager`; in projection
-/// mode many properties are unavailable and it degrades gracefully.
+/// Streams optional vehicle snapshots (airbag, fuel/charge, tire pressure, door
+/// locks). The tablet has no in-vehicle hardware, so a real source would be a
+/// paired OBD dongle or manual triage entry; the engine degrades gracefully to
+/// phone sensors + user triage when it's absent.
 abstract interface class VehicleBusRepository {
   /// The latest snapshot whenever a monitored property changes.
   Stream<VehicleBusSnapshot> watch();
@@ -12,8 +13,8 @@ abstract interface class VehicleBusRepository {
   Future<void> dispose();
 }
 
-/// A developer/test vehicle bus that can be driven by code — push snapshots to
-/// simulate a crash, a low battery, etc. Stands in until the AAOS impl exists.
+/// A developer/test vehicle-signal source driven by code — push snapshots to
+/// simulate a crash, a low battery, etc. The default vehicle-signal source.
 class SimulatedVehicleBusRepository implements VehicleBusRepository {
   SimulatedVehicleBusRepository([
     VehicleBusSnapshot initial = const VehicleBusSnapshot(),

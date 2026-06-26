@@ -1,6 +1,6 @@
 /// Placing and ending emergency calls, abstracted from the platform dialer
-/// (`url_launcher` / AAOS telephony). Live emergency services can't be tested,
-/// so the default impl is a sandbox that records dials instead.
+/// (iOS/Android `tel:` intents via `url_launcher`). Live emergency services
+/// can't be tested, so the default impl is a sandbox that records dials.
 abstract interface class TelephonyRepository {
   Future<void> dial(String number);
   Future<void> hangUp();

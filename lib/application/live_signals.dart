@@ -12,8 +12,9 @@ import 'package:sos_emergency/domain/orchestrator/scenario_library.dart';
 
 part 'live_signals.g.dart';
 
-/// The vehicle bus source. Defaults to a simulated bus; the AAOS
-/// `CarPropertyVehicleBus` is swapped in on the head unit.
+/// The (optional) vehicle-signal source. Defaults to a simulated bus; on a
+/// tablet there is no in-vehicle hardware, so a real source would be a paired
+/// OBD dongle or manual triage entry.
 @Riverpod(keepAlive: true)
 VehicleBusRepository vehicleBus(Ref ref) {
   final repo = SimulatedVehicleBusRepository();

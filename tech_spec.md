@@ -1,11 +1,11 @@
-# In-Car SOS — Technical Specification & Phased Implementation Plan
+# SOS Emergency — Technical Specification & Phased Implementation Plan
 
-**Project:** In-Car SOS — a Generative-UI emergency co-pilot for a landscape tablet (iPad / Android), extending to the vehicle infotainment display
-**Platform:** Tablet in landscape — **Android tablets and iPad** are the primary/reference surface and the canonical design target. Embedded automotive (Android Automotive OS; CarPlay/Android Auto projection) is a later integration target (Phase 5) that reuses the same landscape Surface.
+**Project:** SOS Emergency — a Generative-UI emergency assistant for a landscape tablet (iPad / Android)
+**Platform:** **iPad and Android tablets only**, landscape — the single, canonical design target. (No in-car / Android Automotive / CarPlay embedding.)
 **Stack:** Flutter · Dart · Flutter GenUI SDK (A2UI structured layout) · Riverpod 2.0 (codegen) · freezed · Repository pattern
 **Transport:** REST (fast endpoints) for screen-JSON composition · WebSocket for live voice conversation
 **Status:** Engineering spec — concept to MVP
-**Audience:** Mobile/automotive engineers, design-systems lead, product
+**Audience:** Mobile engineers, design-systems lead, product
 
 ---
 
@@ -33,18 +33,18 @@
 ## 1. Goals & non-goals
 
 ### Goals
-- Render a single emergency **Surface** — designed first for a **tablet in landscape (Android tablet & iPad)** — whose content and layout are composed at runtime by an AI agent from a fixed, design-owned **Widget Catalog**.
-- Treat **landscape on a large screen as the canonical layout**: the app locks to landscape, and every catalog component and deterministic baseline is designed and golden-tested at tablet/iPad landscape breakpoints first. (The same Surface later projects onto the automotive head unit, which is also landscape.)
+- Render a single emergency **Surface** — designed for an **iPad / Android tablet in landscape** — whose content and layout are composed at runtime by an AI agent from a fixed, design-owned **Widget Catalog**.
+- Treat **landscape on a large screen as the canonical (and only) layout**: the app locks to landscape, and every catalog component and deterministic baseline is designed and golden-tested at tablet/iPad landscape breakpoints.
 - Guarantee that the safest action (911 + location) is always one tap away, regardless of what the AI does.
-- Adapt to **vehicle state** (driving / stopped / parked / stuck) and **severity tier** (Moderate / High / Critical).
+- Adapt to **context** (an optional at-a-glance / minimal density mode) and **severity tier** (Moderate / High / Critical).
 - Work **offline** for the core MVP scenarios.
-- Ship the MVP scenario set: flat tire/blowout, won't-start, crash, medical, being-followed/road-rage, locked-out, out-of-gas/EV-low, unsafe-parked.
+- Ship the MVP scenario set: flat tire/blowout, won't-start, crash, medical, being-followed/road-rage, locked-out, out-of-gas/EV-low, unsafe-parked. Scenario context comes from on-device signals and user triage (no in-vehicle hardware required).
 
 ### Non-goals (v1)
 - Full-matrix coverage of every scenario in the brainstorm docs (we expand post-MVP).
 - A general-purpose conversational assistant. This is a narrow, safety-scoped agent.
 - Replacing emergency services or giving medical/legal advice. The app routes and assists; it does not diagnose.
-- Multi-app infotainment shell concerns (we are one app on the head unit, not the launcher).
+- **In-car embedding** — no Android Automotive / CarPlay / head-unit integration. This is a standalone iPad / Android tablet app.
 
 ---
 
@@ -269,9 +269,9 @@ class A2uiRenderer extends StatelessWidget {
 A client-side `DataModel` (a Riverpod Notifier holding a `Map<String, Object?>` keyed by data paths, e.g. `/incident/countdown`). Interactive widgets **only read/write declared paths**; they never call network actions directly — the orchestrator's interaction loop turns a write into the next compose pass. This matches the GenUI guidance on isolating side-effects.
 
 ### Theme & layout
-`SurfaceTheme` carries the severity tier, day/night, driving-vs-parked density, and the **screen class** (the canonical target is a large-screen **landscape tablet / iPad**). Components style themselves from it; severity is conveyed by color **and** shape/iconography (never color alone).
+`SurfaceTheme` carries the severity tier, day/night, density mode (full / minimal), and the **screen class** (the target is a large-screen **landscape tablet / iPad**). Components style themselves from it; severity is conveyed by color **and** shape/iconography (never color alone).
 
-**Landscape-first layout.** The default Surface is a landscape composition tuned for tablet/iPad: a wide root that uses the horizontal space deliberately — e.g. a persistent safety rail (911 + share-location) on one side and the scenario content filling the rest — rather than a stacked phone column. The renderer is **responsive within landscape**: catalog components adapt to the available width/height using `LayoutBuilder` / `MediaQuery.sizeOf` and `Expanded`/`Flexible` (no hard-coded pixel sizes), so the same Surface renders correctly across the iPad / Android-tablet / head-unit size range without per-device layouts. The app **locks to landscape**; portrait is not a supported orientation for the emergency Surface.
+**Landscape-first layout.** The Surface is a landscape composition tuned for tablet/iPad: a wide root that uses the horizontal space deliberately — e.g. a persistent safety rail (911 + share-location) on one side and the scenario content filling the rest — rather than a stacked phone column. The renderer is **responsive within landscape**: catalog components adapt to the available width/height using `LayoutBuilder` / `MediaQuery.sizeOf` and `Expanded`/`Flexible` (no hard-coded pixel sizes), so the same Surface renders correctly across the iPad / Android-tablet size range without per-device layouts. The app **locks to landscape**; portrait is not a supported orientation for the emergency Surface.
 
 ### Transport — two channels, two protocols
 The GenUI "Transport" pillar is split by workload, because the two interactions have opposite latency/shape requirements:
@@ -309,16 +309,16 @@ Stream<EmergencyContext> emergencyContext(Ref ref) {
 
 | Signal source | Repository | Drives |
 |---|---|---|
-| GPS speed/trajectory | `LocationRepository` | driving vs stopped, route-tail detection |
-| Accelerometer/gyro | `SensorRepository` | crash, hard braking, rollover |
-| Vehicle bus / OBD-II | `VehicleBusRepository` | airbag deploy, temps, fuel/charge, warnings |
+| GPS speed/trajectory | `LocationRepository` | movement vs stationary, route-tail detection |
+| Accelerometer/gyro | `SensorRepository` | hard-impact / fall detection |
+| Vehicle bus (optional) | `VehicleBusRepository` | airbag/fuel/charge/tire signals **when available** (simulated, manual entry, or a paired OBD source) |
 | Connectivity/battery | `ConnectivityRepository` | offline & low-power layout switches |
 | Location type, time, weather | `LocationRepository` + provider | shoulder vs lot vs remote; night; storm/fire |
 | Voice / code word | `VoiceSessionRepository` (WebSocket) | intent, discreet SOS, hands-free live agent conversation |
 | Wearable HR | `BiometricRepository` | medical corroboration |
 | Profile / Medical ID | `ProfileRepository` | EV vs ICE, contacts, allergies/conditions |
 
-> **Platform note:** on AAOS, vehicle signals come from the Car/`CarPropertyManager` APIs; in projection mode many are unavailable, so `VehicleBusRepository` degrades gracefully and the engine relies more on phone sensors.
+> **Signal note:** the tablet has no in-vehicle bus. `VehicleBusRepository` is an **optional** input — backed by a simulated/dev source, manual triage entry, or a future paired OBD dongle — and the engine degrades gracefully to phone sensors + user triage when it's absent.
 
 ---
 
@@ -445,8 +445,8 @@ This layer is the single most important thing to get right and the most heavily 
 
 ### Telephony / emergency calling
 - **No silent auto-dial of 911.** Auto-escalation uses a visible, cancelable **countdown** (`CountdownCard`) before placing a call; the user can always cancel or call immediately.
-- Calling is a use case (`PlaceEmergencyCall`) behind `TelephonyRepository`, abstracting platform dialer intents/`url_launcher`/AAOS telephony.
-- **Regulatory:** emergency-number behavior varies by region; integrate with platform emergency services and location relay (e.g. eCall/Advanced Mobile Location where available) rather than reinventing. **Treat the local emergency number as data**, never hard-coded `911`.
+- Calling is a use case (`PlaceEmergencyCall`) behind `TelephonyRepository`, abstracting the platform dialer (iOS/Android `tel:` intents via `url_launcher`).
+- **Regulatory:** emergency-number behavior varies by region; use the platform dialer and Advanced Mobile Location where available rather than reinventing. **Treat the local emergency number as data**, never hard-coded `911`.
 - **Testing constraint:** you cannot test against live emergency services. Provide a `FakeTelephonyRepository` and a "test mode" that exercises the full flow against a sandbox number/log sink.
 
 ### Live location sharing & contacts
@@ -479,13 +479,13 @@ abstract interface class VoiceSessionRepository {
 
 ## 12. Cross-cutting concerns
 
-- **Landscape / large-screen first:** the app locks to landscape; the canonical layout targets tablet & iPad breakpoints and is responsive within landscape (`LayoutBuilder`/`MediaQuery`, no per-device layouts). The same Surface scales to the head unit. Portrait is unsupported for the emergency Surface.
-- **Driving-vs-parked enforcement:** density and interaction depth are gated by `VehicleState`; while driving, the renderer collapses to the minimal/voice-first variant automatically (also a Supervisor rule).
-- **Day/night + contrast:** theme-driven; meets large-screen tablet/automotive legibility at viewing distance.
+- **Landscape / large-screen first:** the app locks to landscape on iPad / Android tablets; the layout is responsive within landscape (`LayoutBuilder`/`MediaQuery`, no per-device layouts). Portrait is unsupported for the emergency Surface.
+- **Minimal density mode:** density and interaction depth can collapse to a minimal/voice-first variant (banner + one primary + rail) — a Supervisor rule — for at-a-glance / hands-busy use.
+- **Day/night + contrast:** theme-driven; meets large-screen tablet legibility at viewing distance.
 - **Localization:** all copy is parameterized; the AI injects localized strings, deterministic baselines use ARB. Emergency numbers and rights info are locale data.
 - **Accessibility:** large targets, semantics labels on every catalog component, voice as a first-class input.
 - **Observability:** structured event logging for each loop iteration (context → classification → which composer won → supervisor actions → render latency). Crash/ANR reporting. Redact PII. This is essential for debugging non-deterministic AI behavior in the field.
-- **Performance budget:** baseline Surface renders < 100 ms from classification; AI enrichment time-boxed at 3 s; 60 fps on target tablet/iPad (and head-unit) hardware.
+- **Performance budget:** baseline Surface renders < 100 ms from classification; AI enrichment time-boxed at 3 s; 60 fps on target iPad / Android-tablet hardware.
 
 ---
 
@@ -511,9 +511,8 @@ abstract interface class VoiceSessionRepository {
 | LLM latency/unavailability on the critical path | Deterministic baseline renders first; AI is time-boxed and optional (Phase-2 app is fully functional without it). |
 | LLM produces unsafe/invalid layout | Safety Supervisor validates and can bypass AI entirely; catalog allow-list. |
 | Emergency-calling regulation & inability to test live | Treat emergency number as data; integrate platform emergency APIs; countdown + cancel; fake telephony + test mode. |
-| False crash detection from sensor noise | Require corroboration (impulse + speed delta + bus signal); cancelable countdown before any auto-action. |
-| AAOS / head-unit fragmentation & certification | Abstract all platform access behind repositories; ship on landscape tablet/iPad first (no head-unit dependency), then bring up a reference head unit reusing the same Surface; projection mode as graceful-degraded path. |
-| Driver distraction / safety review | Driving-mode density limits enforced in renderer + Supervisor; design review against automotive HMI guidelines. |
+| False auto-detection from sensor noise | Require corroboration (impulse + corroborating signal); cancelable countdown before any auto-action. |
+| Tablet fragmentation (iPad / Android sizes) | Abstract all platform access behind repositories; responsive-within-landscape layout, golden-tested at tablet/iPad breakpoints — no per-device layouts. |
 | PII handling (medical ID, location, contacts) | On-device by default; explicit consent; redact in logs; share only when an incident is active and user-authorized. |
 
 ---
@@ -547,10 +546,10 @@ Each phase ends with a **demoable artifact** and explicit **exit criteria**. The
 **Build:** `TelephonyRepository` + `PlaceEmergencyCall` with countdown/cancel and emergency-number-as-data, `ShareLocation` + `NotifyContacts`, `VoiceSessionRepository` (**WebSocket live agent conversation** + on-device TTS/STT/code-word fallback, reconnect/backoff), offline guides + action queue.
 **Exit:** Full escalation flow works against fake/sandbox endpoints in test mode; offline flat-tire and won't-start flows complete with queued actions; live voice session connects over WebSocket and the proxy reads location/medical ID on an active (sandbox) call; a dropped voice socket never blocks screen composition.
 
-### Phase 5 — Automotive integration & hardening
-**Goal:** Run the existing landscape Surface as a real infotainment app on the head unit.
-**Build:** AAOS embedding (**reusing the tablet-landscape Surface unchanged** — the head unit is another landscape large screen), `VehicleBusRepository` against `CarPropertyManager` (airbag/temps/fuel/charge), driving-vs-parked enforcement end-to-end, projection-mode degradation, day/night/contrast tuning, localization (ARB + locale emergency data), accessibility pass, observability/telemetry, performance tuning to 60 fps on reference hardware.
-**Exit:** Runs on the reference head unit; vehicle signals drive classification; HMI distraction review passes; telemetry dashboards live.
+### Phase 5 — Live signals & hardening
+**Goal:** Drive the loop from live on-device signals and harden for release on tablet.
+**Build:** Live signal fusion (`LiveContext`) so sensor/voice/optional-bus signals drive classification, minimal-density enforcement (Supervisor rule), day/night/contrast tuning, localization (ARB + locale emergency data), accessibility pass, observability/telemetry, performance tuning to 60 fps on target iPad / Android tablets. (`VehicleBusRepository` here is an optional/simulated input — no in-vehicle hardware.)
+**Exit:** Live signals drive classification on a real iPad / Android tablet; telemetry dashboards live; accessibility + performance budgets met.
 
 ### Phase 6 — Scenario expansion, QA & release
 **Goal:** Broaden coverage and ship.
@@ -567,7 +566,7 @@ Each phase ends with a **demoable artifact** and explicit **exit criteria**. The
 | **M2 — Safety app (no AI)** | 2 | 8 MVP scenarios fully working deterministically, on-device. |
 | **M3 — AI on, safely** | 3 | AI enriches the screen; supervisor guarantees safety; clean offline fallback. |
 | **M4 — It can actually call for help** | 4 | End-to-end escalation, location share, contacts, voice proxy, offline queue. |
-| **M5 — In the car** | 5 | Running on the head unit with real vehicle signals; hardened. |
+| **M5 — Live & hardened** | 5 | Live on-device signals drive classification on a real tablet; telemetry, l10n, a11y. |
 | **M6 — Shippable** | 6 | Expanded scenarios; beta-validated release candidate. |
 
 **Critical path / parallelization:** Phases 0→1→2 are sequential (each depends on the last). Within Phase 2, signal repositories and the decision engine can be built in parallel. Phase 3's Supervisor work can start as soon as Phase 2's deterministic Surfaces exist (it needs a baseline to fall back to). Phase 4 telephony/regulatory research should begin early (long lead time) even while Phase 2–3 are in flight.

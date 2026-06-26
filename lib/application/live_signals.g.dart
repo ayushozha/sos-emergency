@@ -8,14 +8,16 @@ part of 'live_signals.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// The vehicle bus source. Defaults to a simulated bus; the AAOS
-/// `CarPropertyVehicleBus` is swapped in on the head unit.
+/// The (optional) vehicle-signal source. Defaults to a simulated bus; on a
+/// tablet there is no in-vehicle hardware, so a real source would be a paired
+/// OBD dongle or manual triage entry.
 
 @ProviderFor(vehicleBus)
 final vehicleBusProvider = VehicleBusProvider._();
 
-/// The vehicle bus source. Defaults to a simulated bus; the AAOS
-/// `CarPropertyVehicleBus` is swapped in on the head unit.
+/// The (optional) vehicle-signal source. Defaults to a simulated bus; on a
+/// tablet there is no in-vehicle hardware, so a real source would be a paired
+/// OBD dongle or manual triage entry.
 
 final class VehicleBusProvider
     extends
@@ -25,8 +27,9 @@ final class VehicleBusProvider
           VehicleBusRepository
         >
     with $Provider<VehicleBusRepository> {
-  /// The vehicle bus source. Defaults to a simulated bus; the AAOS
-  /// `CarPropertyVehicleBus` is swapped in on the head unit.
+  /// The (optional) vehicle-signal source. Defaults to a simulated bus; on a
+  /// tablet there is no in-vehicle hardware, so a real source would be a paired
+  /// OBD dongle or manual triage entry.
   VehicleBusProvider._()
     : super(
         from: null,
