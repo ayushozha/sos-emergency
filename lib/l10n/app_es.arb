@@ -1,0 +1,8 @@
+{
+  "@@locale": "es",
+  "appTitle": "SOS Emergencia",
+  "callNow": "Llamar ahora",
+  "imSafe": "Estoy a salvo",
+  "shareLocation": "Compartir ubicación",
+  "callingAutomatically": "Llamando a {number} automáticamente"
+}

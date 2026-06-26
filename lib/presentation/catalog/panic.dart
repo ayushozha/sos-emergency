@@ -22,60 +22,71 @@ Widget buildSosCallButton(BuildContext context, WidgetRef ref, A2uiNode node) {
 
   if (callState == 'active') {
     final duration = ref.resolveString(node, 'callDuration') ?? '00:00';
-    return _PanicSquare(
-      decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(SosTokens.radiusXl),
-        border: Border.all(color: palette.safe, width: 2),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              StatusDot(color: palette.safe),
-              const SizedBox(width: SosTokens.space2),
-              Text('ON CALL', style: SosText.label(SosStatus.reached)),
-            ],
-          ),
-          const SizedBox(height: SosTokens.space3),
-          Text(duration, style: SosText.telemetry(palette.text)),
-          const SizedBox(height: SosTokens.space2),
-          Text('Dispatcher · $number', style: SosText.body(palette.textMuted)),
-        ],
+    return Semantics(
+      liveRegion: true,
+      label: 'On call with emergency services $number, duration $duration',
+      child: _PanicSquare(
+        decoration: BoxDecoration(
+          color: palette.surface,
+          borderRadius: BorderRadius.circular(SosTokens.radiusXl),
+          border: Border.all(color: palette.safe, width: 2),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                StatusDot(color: palette.safe),
+                const SizedBox(width: SosTokens.space2),
+                Text('ON CALL', style: SosText.label(SosStatus.reached)),
+              ],
+            ),
+            const SizedBox(height: SosTokens.space3),
+            Text(duration, style: SosText.telemetry(palette.text)),
+            const SizedBox(height: SosTokens.space2),
+            Text(
+              'Dispatcher · $number',
+              style: SosText.body(palette.textMuted),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  return _PanicSquare(
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [_redLight, _redDark],
+  return Semantics(
+    button: true,
+    label: 'Call emergency services, $number, now',
+    child: _PanicSquare(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [_redLight, _redDark],
+        ),
+        borderRadius: BorderRadius.circular(SosTokens.radiusXl),
       ),
-      borderRadius: BorderRadius.circular(SosTokens.radiusXl),
-    ),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(Icons.call, color: Colors.white, size: 48),
-        const SizedBox(height: SosTokens.space2),
-        Text(
-          number,
-          style: const TextStyle(
-            fontFamily: SosTokens.fontDisplay,
-            fontSize: 40,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.call, color: Colors.white, size: 48),
+          const SizedBox(height: SosTokens.space2),
+          Text(
+            number,
+            style: const TextStyle(
+              fontFamily: SosTokens.fontDisplay,
+              fontSize: 40,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+            ),
           ),
-        ),
-        Text(
-          'CALL NOW',
-          style: SosText.label(Colors.white).copyWith(letterSpacing: 1.2),
-        ),
-      ],
+          Text(
+            'CALL NOW',
+            style: SosText.label(Colors.white).copyWith(letterSpacing: 1.2),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -219,38 +230,42 @@ Widget buildNotifyContactsAction(
 /// Inputs: `holdMs`.
 Widget buildImSafeCancel(BuildContext context, WidgetRef ref, A2uiNode node) {
   final palette = ref.watch(surfacePaletteProvider);
-  return SosCard(
-    palette: palette,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          height: SosTokens.touchTap,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: palette.surface,
-            borderRadius: BorderRadius.circular(SosTokens.radiusMd),
-            border: Border.all(color: palette.safe, width: 2),
+  return Semantics(
+    button: true,
+    label: "I'm safe — hold to stop the countdown and cancel the auto-call",
+    child: SosCard(
+      palette: palette,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: SosTokens.touchTap,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: palette.surface,
+              borderRadius: BorderRadius.circular(SosTokens.radiusMd),
+              border: Border.all(color: palette.safe, width: 2),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(SosIcons.resolve('i-am-safe'), color: SosStatus.reached),
+                const SizedBox(width: SosTokens.space3),
+                Text(
+                  "I'm safe",
+                  style: SosText.headline(SosStatus.reached),
+                ),
+              ],
+            ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(SosIcons.resolve('i-am-safe'), color: SosStatus.reached),
-              const SizedBox(width: SosTokens.space3),
-              Text(
-                "I'm safe",
-                style: SosText.headline(SosStatus.reached),
-              ),
-            ],
+          const SizedBox(height: SosTokens.space3),
+          Text(
+            'Hold to stop the countdown & cancel auto-call',
+            textAlign: TextAlign.center,
+            style: SosText.body(palette.textMuted),
           ),
-        ),
-        const SizedBox(height: SosTokens.space3),
-        Text(
-          'Hold to stop the countdown & cancel auto-call',
-          textAlign: TextAlign.center,
-          style: SosText.body(palette.textMuted),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }

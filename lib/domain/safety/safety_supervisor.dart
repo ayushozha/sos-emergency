@@ -49,10 +49,42 @@ class SafetySupervisor {
       );
     }
 
+    // R6: while driving, collapse to the minimal/voice-first variant — the
+    // banner plus a single primary action. The persistent rail (in
+    // EmergencyRoot) still covers 911 + share-location + voice.
+    if (safeRoot.props['carState'] == 'driving') {
+      safeRoot = _collapseForDriving(safeRoot);
+    }
+
     // R5: if enforcement stripped the surface empty, fall back.
     if (safeRoot.children.isEmpty) return _fallback(baseline);
 
     return candidate.copyWith(root: safeRoot);
+  }
+
+  /// Components that may remain as the single "primary" while driving.
+  static const Set<String> _drivingPrimaries = {
+    'ActionStack',
+    'SOSCallButton',
+    'GuidanceCallout',
+    'CountdownCard',
+    'YesNoLarge',
+    'PushToTalk',
+  };
+
+  /// Keeps at most the first SeverityBanner and the first primary action,
+  /// dropping everything else so a driver isn't asked to read or scroll.
+  A2uiNode _collapseForDriving(A2uiNode root) {
+    A2uiNode? banner;
+    A2uiNode? primary;
+    for (final child in root.children) {
+      if (child.type == 'SeverityBanner') {
+        banner ??= child;
+      } else if (primary == null && _drivingPrimaries.contains(child.type)) {
+        primary = child;
+      }
+    }
+    return root.copyWith(children: [?banner, ?primary]);
   }
 
   Surface _fallback(Surface baseline) => baseline.copyWith(isFallback: true);

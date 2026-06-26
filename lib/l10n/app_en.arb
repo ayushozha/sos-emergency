@@ -1,0 +1,16 @@
+{
+  "@@locale": "en",
+  "appTitle": "SOS Emergency",
+  "@appTitle": { "description": "Application title." },
+  "callNow": "Call now",
+  "@callNow": { "description": "Label on the emergency call button." },
+  "imSafe": "I'm safe",
+  "@imSafe": { "description": "Label to cancel an auto-escalation." },
+  "shareLocation": "Share location",
+  "@shareLocation": { "description": "Label to start sharing live location." },
+  "callingAutomatically": "Calling {number} automatically",
+  "@callingAutomatically": {
+    "description": "Countdown message before an automatic emergency call.",
+    "placeholders": { "number": { "type": "String" } }
+  }
+}

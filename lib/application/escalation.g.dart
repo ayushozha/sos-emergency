@@ -372,21 +372,21 @@ final class OfflineGuidesProvider
 
 String _$offlineGuidesHash() => r'd253e0b74a009984b94c185182cb3933bd5bc33e';
 
-/// Owns the emergency-call lifecycle. Auto-escalation arms a visible, cancelable
-/// countdown before dialing — never a silent auto-dial — and the number is
-/// resolved from locale data, never hard-coded.
+/// Owns the emergency-call lifecycle. Auto-escalation arms a visible,
+/// cancelable countdown before dialing — never a silent auto-dial — and the
+/// number is resolved from locale data, never hard-coded.
 
 @ProviderFor(EmergencyCallController)
 final emergencyCallControllerProvider = EmergencyCallControllerProvider._();
 
-/// Owns the emergency-call lifecycle. Auto-escalation arms a visible, cancelable
-/// countdown before dialing — never a silent auto-dial — and the number is
-/// resolved from locale data, never hard-coded.
+/// Owns the emergency-call lifecycle. Auto-escalation arms a visible,
+/// cancelable countdown before dialing — never a silent auto-dial — and the
+/// number is resolved from locale data, never hard-coded.
 final class EmergencyCallControllerProvider
     extends $NotifierProvider<EmergencyCallController, EmergencyCallState> {
-  /// Owns the emergency-call lifecycle. Auto-escalation arms a visible, cancelable
-  /// countdown before dialing — never a silent auto-dial — and the number is
-  /// resolved from locale data, never hard-coded.
+  /// Owns the emergency-call lifecycle. Auto-escalation arms a visible,
+  /// cancelable countdown before dialing — never a silent auto-dial — and the
+  /// number is resolved from locale data, never hard-coded.
   EmergencyCallControllerProvider._()
     : super(
         from: null,
@@ -417,9 +417,9 @@ final class EmergencyCallControllerProvider
 String _$emergencyCallControllerHash() =>
     r'e7fe010e6a782030cf89251d30198c10a7bcaea5';
 
-/// Owns the emergency-call lifecycle. Auto-escalation arms a visible, cancelable
-/// countdown before dialing — never a silent auto-dial — and the number is
-/// resolved from locale data, never hard-coded.
+/// Owns the emergency-call lifecycle. Auto-escalation arms a visible,
+/// cancelable countdown before dialing — never a silent auto-dial — and the
+/// number is resolved from locale data, never hard-coded.
 
 abstract class _$EmergencyCallController extends $Notifier<EmergencyCallState> {
   EmergencyCallState build();

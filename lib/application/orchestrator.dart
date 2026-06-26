@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sos_emergency/application/ai_orchestration.dart';
+import 'package:sos_emergency/application/telemetry.dart';
 import 'package:sos_emergency/data/signals/context_aggregator.dart';
 import 'package:sos_emergency/data/signals/scenario_context_repository.dart';
 import 'package:sos_emergency/domain/engine/decision_engine.dart';
@@ -66,6 +67,16 @@ class SurfaceController extends _$SurfaceController {
         .watch(safetySupervisorProvider)
         .enforce(baseline, baseline: baseline, classification: classification);
 
+    ref
+        .read(telemetryProvider)
+        .record(
+          loopEventFor(
+            classification,
+            source: SurfaceSource.baseline,
+            isFallback: enforced.isFallback,
+          ),
+        );
+
     final generation = ++_generation;
     final online = ctx.connectivity != Connectivity.offline;
     if (online && ref.watch(aiEnabledProvider)) {
@@ -94,12 +105,22 @@ class SurfaceController extends _$SurfaceController {
         root: root,
         isFallback: false,
       );
-      state = ref
+      final enforced = ref
           .read(safetySupervisorProvider)
           .enforce(
             proposed,
             baseline: baseline,
             classification: classification,
+          );
+      state = enforced;
+      ref
+          .read(telemetryProvider)
+          .record(
+            loopEventFor(
+              classification,
+              source: SurfaceSource.ai,
+              isFallback: enforced.isFallback,
+            ),
           );
     } on Object {
       // Network drop / timeout / invalid layout — the baseline already renders.

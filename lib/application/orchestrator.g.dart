@@ -310,7 +310,7 @@ final class SurfaceControllerProvider
   }
 }
 
-String _$surfaceControllerHash() => r'682b7f94edc8eb188fdc30bc98f507a08a878e7e';
+String _$surfaceControllerHash() => r'5caa4f90d088a66eb2edfde3381c59ecf2730fdf';
 
 /// The orchestrator loop: sense → classify → compose → validate → render.
 ///
