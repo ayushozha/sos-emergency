@@ -256,21 +256,33 @@ final class EmergencyContextProvider
 
 String _$emergencyContextHash() => r'5ff06726dea4dc19a23bf0a6d87fd0cf4bd2af9f';
 
-/// The orchestrator's baseline loop: sense → classify → compose → render. Holds
-/// the current deterministic [Surface] and recomputes it whenever the fused
-/// context changes. No AI and no Safety Supervisor yet (Phase 3).
+/// The orchestrator loop: sense → classify → compose → validate → render.
+///
+/// The deterministic baseline is enforced by the Safety Supervisor and rendered
+/// immediately. Best-effort AI enrichment is then kicked off, time-boxed; if it
+/// returns a valid surface in time it replaces the baseline (after passing the
+/// Supervisor), otherwise the baseline stays. The AI is never on the critical
+/// path and can never remove a safety capability.
 
 @ProviderFor(SurfaceController)
 final surfaceControllerProvider = SurfaceControllerProvider._();
 
-/// The orchestrator's baseline loop: sense → classify → compose → render. Holds
-/// the current deterministic [Surface] and recomputes it whenever the fused
-/// context changes. No AI and no Safety Supervisor yet (Phase 3).
+/// The orchestrator loop: sense → classify → compose → validate → render.
+///
+/// The deterministic baseline is enforced by the Safety Supervisor and rendered
+/// immediately. Best-effort AI enrichment is then kicked off, time-boxed; if it
+/// returns a valid surface in time it replaces the baseline (after passing the
+/// Supervisor), otherwise the baseline stays. The AI is never on the critical
+/// path and can never remove a safety capability.
 final class SurfaceControllerProvider
     extends $NotifierProvider<SurfaceController, Surface> {
-  /// The orchestrator's baseline loop: sense → classify → compose → render. Holds
-  /// the current deterministic [Surface] and recomputes it whenever the fused
-  /// context changes. No AI and no Safety Supervisor yet (Phase 3).
+  /// The orchestrator loop: sense → classify → compose → validate → render.
+  ///
+  /// The deterministic baseline is enforced by the Safety Supervisor and rendered
+  /// immediately. Best-effort AI enrichment is then kicked off, time-boxed; if it
+  /// returns a valid surface in time it replaces the baseline (after passing the
+  /// Supervisor), otherwise the baseline stays. The AI is never on the critical
+  /// path and can never remove a safety capability.
   SurfaceControllerProvider._()
     : super(
         from: null,
@@ -298,11 +310,15 @@ final class SurfaceControllerProvider
   }
 }
 
-String _$surfaceControllerHash() => r'9d3a50b1429aec3e484b5ad989c50bd0c2e37a18';
+String _$surfaceControllerHash() => r'682b7f94edc8eb188fdc30bc98f507a08a878e7e';
 
-/// The orchestrator's baseline loop: sense → classify → compose → render. Holds
-/// the current deterministic [Surface] and recomputes it whenever the fused
-/// context changes. No AI and no Safety Supervisor yet (Phase 3).
+/// The orchestrator loop: sense → classify → compose → validate → render.
+///
+/// The deterministic baseline is enforced by the Safety Supervisor and rendered
+/// immediately. Best-effort AI enrichment is then kicked off, time-boxed; if it
+/// returns a valid surface in time it replaces the baseline (after passing the
+/// Supervisor), otherwise the baseline stays. The AI is never on the critical
+/// path and can never remove a safety capability.
 
 abstract class _$SurfaceController extends $Notifier<Surface> {
   Surface build();

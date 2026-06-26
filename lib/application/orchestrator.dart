@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:sos_emergency/application/ai_orchestration.dart';
 import 'package:sos_emergency/data/signals/context_aggregator.dart';
 import 'package:sos_emergency/data/signals/scenario_context_repository.dart';
 import 'package:sos_emergency/domain/engine/decision_engine.dart';
+import 'package:sos_emergency/domain/models/classification.dart';
 import 'package:sos_emergency/domain/models/emergency_context.dart';
 import 'package:sos_emergency/domain/models/emergency_enums.dart';
 import 'package:sos_emergency/domain/models/surface.dart';
@@ -39,18 +43,66 @@ EmergencyContextRepository emergencyContextRepository(Ref ref) =>
 Stream<EmergencyContext> emergencyContext(Ref ref) =>
     ref.watch(emergencyContextRepositoryProvider).watch();
 
-/// The orchestrator's baseline loop: sense → classify → compose → render. Holds
-/// the current deterministic [Surface] and recomputes it whenever the fused
-/// context changes. No AI and no Safety Supervisor yet (Phase 3).
+/// The orchestrator loop: sense → classify → compose → validate → render.
+///
+/// The deterministic baseline is enforced by the Safety Supervisor and rendered
+/// immediately. Best-effort AI enrichment is then kicked off, time-boxed; if it
+/// returns a valid surface in time it replaces the baseline (after passing the
+/// Supervisor), otherwise the baseline stays. The AI is never on the critical
+/// path and can never remove a safety capability.
 @Riverpod(keepAlive: true)
 class SurfaceController extends _$SurfaceController {
+  int _generation = 0;
+
   @override
   Surface build() {
     final ctx =
         ref.watch(emergencyContextProvider).asData?.value ?? idleContext();
     final classification = ref.watch(decisionEngineProvider).classify(ctx);
-    return ref
+    final baseline = ref
         .watch(deterministicComposerProvider)
         .compose(classification, ctx);
+    final enforced = ref
+        .watch(safetySupervisorProvider)
+        .enforce(baseline, baseline: baseline, classification: classification);
+
+    final generation = ++_generation;
+    final online = ctx.connectivity != Connectivity.offline;
+    if (online && ref.watch(aiEnabledProvider)) {
+      unawaited(_enrich(generation, classification, ctx, enforced));
+    }
+    return enforced;
+  }
+
+  /// Best-effort, time-boxed AI enrichment. Silently keeps the baseline on any
+  /// timeout, transport failure, or supervisor rejection.
+  Future<void> _enrich(
+    int generation,
+    Classification classification,
+    EmergencyContext ctx,
+    Surface baseline,
+  ) async {
+    try {
+      final root = await ref
+          .read(aiComposerProvider)
+          .compose(classification, ctx)
+          .timeout(aiTimeBudget);
+      if (generation != _generation) return; // a newer context superseded us.
+      final proposed = Surface(
+        mode: classification.mode,
+        severity: classification.severity,
+        root: root,
+        isFallback: false,
+      );
+      state = ref
+          .read(safetySupervisorProvider)
+          .enforce(
+            proposed,
+            baseline: baseline,
+            classification: classification,
+          );
+    } on Object {
+      // Network drop / timeout / invalid layout — the baseline already renders.
+    }
   }
 }
