@@ -8,6 +8,7 @@ import 'package:sos_emergency/presentation/catalog/shared/sos_chrome.dart';
 import 'package:sos_emergency/presentation/catalog/shared/sos_icons.dart';
 import 'package:sos_emergency/presentation/surface/a2ui_renderer.dart';
 import 'package:sos_emergency/presentation/surface/binding_resolver.dart';
+import 'package:sos_emergency/presentation/surface/surface_actions.dart';
 import 'package:sos_emergency/presentation/surface/surface_theme_providers.dart';
 
 /// `EmergencyRoot` — the Surface root every screen mounts into. The AI fills
@@ -35,15 +36,28 @@ Widget buildEmergencyRoot(BuildContext context, WidgetRef ref, A2uiNode node) {
         ),
       ),
       const SizedBox(width: SosTokens.space5),
-      SizedBox(width: 150, child: _SafetyRail(palette: palette)),
+      SizedBox(
+        width: 150,
+        child: _SafetyRail(
+          palette: palette,
+          onCall: ref.callEmergencyNow,
+          onShare: ref.toggleLocationSharing,
+        ),
+      ),
     ],
   );
 }
 
 class _SafetyRail extends StatelessWidget {
-  const _SafetyRail({required this.palette});
+  const _SafetyRail({
+    required this.palette,
+    required this.onCall,
+    required this.onShare,
+  });
 
   final SurfacePalette palette;
+  final VoidCallback onCall;
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -53,43 +67,59 @@ class _SafetyRail extends StatelessWidget {
         const SizedBox(height: SosTokens.space3),
         AspectRatio(
           aspectRatio: 1,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [SosTokens.brandRedLight, SosTokens.brandRedDark],
-              ),
-              borderRadius: BorderRadius.circular(SosTokens.radiusMd),
-            ),
-            child: const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.call, color: Colors.white, size: 26),
-                Text(
-                  '911',
-                  style: TextStyle(
-                    fontFamily: SosTokens.fontDisplay,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
+          child: _Tappable(
+            onTap: onCall,
+            radius: SosTokens.radiusMd,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [SosTokens.brandRedLight, SosTokens.brandRedDark],
                 ),
-              ],
+                borderRadius: BorderRadius.circular(SosTokens.radiusMd),
+                boxShadow: [
+                  BoxShadow(
+                    color: SosTokens.brandRedDark.withValues(alpha: 0.5),
+                    blurRadius: 22,
+                    spreadRadius: -10,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.call, color: Colors.white, size: 26),
+                  Text(
+                    '911',
+                    style: TextStyle(
+                      fontFamily: SosTokens.fontDisplay,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
         const SizedBox(height: SosTokens.space3),
-        _RailTile(
-          color: palette.safe.withValues(alpha: 0.14),
-          border: palette.safe,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              StatusDot(color: palette.safe, size: 9),
-              const SizedBox(width: SosTokens.space2),
-              Text('Live', style: SosText.label(SosStatus.reached)),
-            ],
+        _Tappable(
+          onTap: onShare,
+          radius: SosTokens.radiusSm,
+          child: _RailTile(
+            color: palette.safe.withValues(alpha: 0.14),
+            border: palette.safe,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                StatusDot(color: palette.safe, size: 9),
+                const SizedBox(width: SosTokens.space2),
+                Text('Live', style: SosText.label(SosStatus.reached)),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: SosTokens.space3),
@@ -99,6 +129,32 @@ class _SafetyRail extends StatelessWidget {
           child: Icon(SosIcons.resolve('voice'), color: palette.textMuted),
         ),
       ],
+    );
+  }
+}
+
+/// A ripple-on-tap wrapper that respects a corner radius.
+class _Tappable extends StatelessWidget {
+  const _Tappable({
+    required this.onTap,
+    required this.radius,
+    required this.child,
+  });
+
+  final VoidCallback onTap;
+  final double radius;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(radius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(radius),
+        onTap: onTap,
+        child: child,
+      ),
     );
   }
 }

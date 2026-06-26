@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sos_emergency/app/theme/sos_tokens.dart';
 import 'package:sos_emergency/app/theme/surface_palette.dart';
 import 'package:sos_emergency/domain/models/severity.dart';
+import 'package:sos_emergency/domain/models/surface_brightness.dart';
 
 /// Shared visual chrome for catalog widgets: text roles, cards, skeleton
 /// placeholders, status dots, and tier-aware containers.
@@ -78,14 +79,53 @@ class SosCard extends StatelessWidget {
     final accent = tier == null ? null : TierStyle.of(tier!, palette).accent;
     return Container(
       decoration: BoxDecoration(
-        color: palette.surface,
+        gradient: SosShadows.surfaceGradient(palette),
         borderRadius: BorderRadius.circular(SosTokens.radiusMd),
         border: accent == null
             ? Border.all(color: palette.textMuted.withValues(alpha: 0.16))
             : Border(left: BorderSide(color: accent, width: 4)),
+        boxShadow: SosShadows.soft(palette),
       ),
       padding: padding,
       child: child,
+    );
+  }
+}
+
+/// Soft, warm, layered shadows + the subtle surface gradient that give the
+/// design its tactile, premium-medical feel.
+abstract final class SosShadows {
+  static const Color _warm = Color(0xFF786C5E);
+
+  static List<BoxShadow> soft(SurfacePalette palette) {
+    final base = palette.brightness == SurfaceBrightness.day
+        ? _warm
+        : const Color(0xFF000000);
+    return [
+      BoxShadow(
+        color: base.withValues(alpha: 0.20),
+        blurRadius: 26,
+        spreadRadius: -16,
+        offset: const Offset(0, 16),
+      ),
+      BoxShadow(
+        color: base.withValues(alpha: 0.12),
+        blurRadius: 8,
+        spreadRadius: -6,
+        offset: const Offset(0, 4),
+      ),
+    ];
+  }
+
+  /// A soft top-light → settled-bottom gradient on light surfaces.
+  static LinearGradient surfaceGradient(SurfacePalette palette) {
+    final top = palette.brightness == SurfaceBrightness.day
+        ? const Color(0xFFFFFFFF)
+        : palette.surface;
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [top, palette.surface],
     );
   }
 }

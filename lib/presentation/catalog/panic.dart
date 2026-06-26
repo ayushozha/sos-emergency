@@ -6,6 +6,7 @@ import 'package:sos_emergency/domain/models/a2ui_node.dart';
 import 'package:sos_emergency/presentation/catalog/shared/sos_chrome.dart';
 import 'package:sos_emergency/presentation/catalog/shared/sos_icons.dart';
 import 'package:sos_emergency/presentation/surface/binding_resolver.dart';
+import 'package:sos_emergency/presentation/surface/surface_actions.dart';
 import 'package:sos_emergency/presentation/surface/surface_theme_providers.dart';
 
 const Color _redLight = SosTokens.brandRedLight;
@@ -58,34 +59,45 @@ Widget buildSosCallButton(BuildContext context, WidgetRef ref, A2uiNode node) {
   return Semantics(
     button: true,
     label: 'Call emergency services, $number, now',
-    child: _PanicSquare(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_redLight, _redDark],
-        ),
-        borderRadius: BorderRadius.circular(SosTokens.radiusXl),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.call, color: Colors.white, size: 48),
-          const SizedBox(height: SosTokens.space2),
-          Text(
-            number,
-            style: const TextStyle(
-              fontFamily: SosTokens.fontDisplay,
-              fontSize: 40,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
+    child: GestureDetector(
+      onTap: ref.callEmergencyNow,
+      child: _PanicSquare(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [_redLight, _redDark],
+          ),
+          borderRadius: BorderRadius.circular(SosTokens.radiusXl),
+          boxShadow: [
+            BoxShadow(
+              color: _redDark.withValues(alpha: 0.5),
+              blurRadius: 30,
+              spreadRadius: -10,
+              offset: const Offset(0, 18),
             ),
-          ),
-          Text(
-            'CALL NOW',
-            style: SosText.label(Colors.white).copyWith(letterSpacing: 1.2),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.call, color: Colors.white, size: 48),
+            const SizedBox(height: SosTokens.space2),
+            Text(
+              number,
+              style: const TextStyle(
+                fontFamily: SosTokens.fontDisplay,
+                fontSize: 40,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+            Text(
+              'CALL NOW',
+              style: SosText.label(Colors.white).copyWith(letterSpacing: 1.2),
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -238,24 +250,24 @@ Widget buildImSafeCancel(BuildContext context, WidgetRef ref, A2uiNode node) {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            height: SosTokens.touchTap,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: palette.surface,
-              borderRadius: BorderRadius.circular(SosTokens.radiusMd),
-              border: Border.all(color: palette.safe, width: 2),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(SosIcons.resolve('i-am-safe'), color: SosStatus.reached),
-                const SizedBox(width: SosTokens.space3),
-                Text(
-                  "I'm safe",
-                  style: SosText.headline(SosStatus.reached),
-                ),
-              ],
+          GestureDetector(
+            onTap: ref.backToTriage,
+            child: Container(
+              height: SosTokens.touchTap,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: palette.surface,
+                borderRadius: BorderRadius.circular(SosTokens.radiusMd),
+                border: Border.all(color: palette.safe, width: 2),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(SosIcons.resolve('i-am-safe'), color: SosStatus.reached),
+                  const SizedBox(width: SosTokens.space3),
+                  Text("I'm safe", style: SosText.headline(SosStatus.reached)),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: SosTokens.space3),

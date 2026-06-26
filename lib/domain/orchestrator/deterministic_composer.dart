@@ -260,17 +260,21 @@ class DeterministicComposer {
 
   List<A2uiNode> _triage(Classification clf, EmergencyContext ctx) => [
     _node(
+      'GuidanceText',
+      props: {'kicker': 'Emergency assistant', 'text': "What's happening?"},
+    ),
+    _node(
       'ChoiceGrid',
       props: {'columns': 4},
       children: const [
-        _ChoiceData('Car problem', 'vehicle'),
-        _ChoiceData('Crash', 'crash'),
-        _ChoiceData('Medical', 'medical'),
-        _ChoiceData('I feel unsafe', 'unsafe'),
-        _ChoiceData('Being followed', 'followed'),
-        _ChoiceData('Locked out', 'locked-out'),
-        _ChoiceData('Roadside help', 'roadside'),
-        _ChoiceData('Document it', 'document'),
+        _ChoiceData('Car problem', 'vehicle', 'wontStart'),
+        _ChoiceData('Crash', 'crash', 'crash'),
+        _ChoiceData('Medical', 'medical', 'medical'),
+        _ChoiceData('I feel unsafe', 'unsafe', 'unsafeParked'),
+        _ChoiceData('Being followed', 'followed', 'beingFollowed'),
+        _ChoiceData('Locked out', 'locked-out', 'lockedOut'),
+        _ChoiceData('Roadside help', 'roadside', 'flatTire'),
+        _ChoiceData('Document it', 'document', 'documentIncident'),
       ].map(_choiceCard).toList(),
     ),
     _node('PushToTalk', props: {'state': 'idle'}),
@@ -374,7 +378,11 @@ class DeterministicComposer {
 
   A2uiNode _choiceCard(_ChoiceData data) => _node(
     'BigChoiceCard',
-    props: {'label': data.label, 'icon': data.icon},
+    props: {
+      'label': data.label,
+      'icon': data.icon,
+      'scenario': data.scenario,
+    },
   );
 
   A2uiNode _node(
@@ -392,7 +400,10 @@ class DeterministicComposer {
 }
 
 class _ChoiceData {
-  const _ChoiceData(this.label, this.icon);
+  const _ChoiceData(this.label, this.icon, this.scenario);
   final String label;
   final String icon;
+
+  /// The scenario this choice navigates to.
+  final String scenario;
 }

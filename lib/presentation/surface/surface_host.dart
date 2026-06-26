@@ -5,11 +5,12 @@ import 'package:sos_emergency/application/orchestrator.dart';
 import 'package:sos_emergency/domain/models/emergency_enums.dart';
 import 'package:sos_emergency/domain/models/surface_brightness.dart';
 import 'package:sos_emergency/presentation/surface/a2ui_renderer.dart';
+import 'package:sos_emergency/presentation/surface/surface_actions.dart';
 import 'package:sos_emergency/presentation/surface/surface_theme_providers.dart';
 
-/// Hosts the renderer: paints the themed ground and renders the deterministic
-/// Surface the orchestrator composes for the current scenario. A debug bar
-/// switches scenario and day/night until live signals drive the loop (Phase 5).
+/// Hosts the renderer: paints the themed ground and renders the Surface the
+/// orchestrator composes for the current scenario. A slim top bar offers a
+/// back-to-triage affordance (on scenario screens) and a day/night toggle.
 class SurfaceHost extends ConsumerWidget {
   const SurfaceHost({super.key});
 
@@ -23,10 +24,15 @@ class SurfaceHost extends ConsumerWidget {
       child: SafeArea(
         child: Column(
           children: [
-            const _DebugBar(),
+            const _TopBar(),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(SosTokens.space12),
+                padding: const EdgeInsets.fromLTRB(
+                  SosTokens.space12,
+                  SosTokens.space4,
+                  SosTokens.space12,
+                  SosTokens.space12,
+                ),
                 child: A2uiRenderer(node: surface.root),
               ),
             ),
@@ -37,15 +43,16 @@ class SurfaceHost extends ConsumerWidget {
   }
 }
 
-class _DebugBar extends ConsumerWidget {
-  const _DebugBar();
+class _TopBar extends ConsumerWidget {
+  const _TopBar();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(surfacePaletteProvider);
     final scenario = ref.watch(demoScenarioProvider);
-    final brightness = ref.watch(surfaceBrightnessControllerProvider);
-    final isDay = brightness == SurfaceBrightness.day;
+    final isDay =
+        ref.watch(surfaceBrightnessControllerProvider) == SurfaceBrightness.day;
+    final onTriage = scenario == ScenarioClass.unknown;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -56,29 +63,22 @@ class _DebugBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Text('Scenario', style: TextStyle(color: palette.textMuted)),
-          const SizedBox(width: SosTokens.space3),
-          DropdownButton<ScenarioClass>(
-            value: scenario,
-            dropdownColor: palette.surface,
-            onChanged: (value) {
-              if (value != null) {
-                ref.read(demoScenarioProvider.notifier).select(value);
-              }
-            },
-            items: [
-              for (final s in ScenarioClass.values)
-                DropdownMenuItem(value: s, child: Text(s.name)),
-            ],
-          ),
+          if (!onTriage)
+            TextButton.icon(
+              onPressed: ref.backToTriage,
+              icon: const Icon(Icons.arrow_back_rounded, size: 20),
+              label: const Text('Back'),
+              style: TextButton.styleFrom(foregroundColor: palette.textMuted),
+            ),
           const Spacer(),
-          FilledButton.tonalIcon(
+          IconButton(
+            tooltip: isDay ? 'Night' : 'Day',
+            color: palette.textMuted,
             onPressed: () =>
                 ref.read(surfaceBrightnessControllerProvider.notifier).toggle(),
             icon: Icon(
               isDay ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
             ),
-            label: Text(isDay ? 'Night' : 'Day'),
           ),
         ],
       ),
