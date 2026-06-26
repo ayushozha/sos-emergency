@@ -1,8 +1,9 @@
 # In-Car SOS — Technical Specification & Phased Implementation Plan
 
-**Project:** In-Car SOS — a Generative-UI emergency co-pilot for the vehicle infotainment display
-**Platform:** Embedded automotive (Android Automotive OS primary; CarPlay/Android Auto projection as a constrained secondary surface)
+**Project:** In-Car SOS — a Generative-UI emergency co-pilot for a landscape tablet (iPad / Android), extending to the vehicle infotainment display
+**Platform:** Tablet in landscape — **Android tablets and iPad** are the primary/reference surface and the canonical design target. Embedded automotive (Android Automotive OS; CarPlay/Android Auto projection) is a later integration target (Phase 5) that reuses the same landscape Surface.
 **Stack:** Flutter · Dart · Flutter GenUI SDK (A2UI structured layout) · Riverpod 2.0 (codegen) · freezed · Repository pattern
+**Transport:** REST (fast endpoints) for screen-JSON composition · WebSocket for live voice conversation
 **Status:** Engineering spec — concept to MVP
 **Audience:** Mobile/automotive engineers, design-systems lead, product
 
@@ -32,7 +33,8 @@
 ## 1. Goals & non-goals
 
 ### Goals
-- Render a single emergency **Surface** on the infotainment display whose content and layout are composed at runtime by an AI agent from a fixed, design-owned **Widget Catalog**.
+- Render a single emergency **Surface** — designed first for a **tablet in landscape (Android tablet & iPad)** — whose content and layout are composed at runtime by an AI agent from a fixed, design-owned **Widget Catalog**.
+- Treat **landscape on a large screen as the canonical layout**: the app locks to landscape, and every catalog component and deterministic baseline is designed and golden-tested at tablet/iPad landscape breakpoints first. (The same Surface later projects onto the automotive head unit, which is also landscape.)
 - Guarantee that the safest action (911 + location) is always one tap away, regardless of what the AI does.
 - Adapt to **vehicle state** (driving / stopped / parked / stuck) and **severity tier** (Moderate / High / Critical).
 - Work **offline** for the core MVP scenarios.
@@ -88,7 +90,8 @@ Feature-first clean architecture. Three layers, dependency-inverted via the Repo
 ┌───────────────┴──────────────────────────────────┴────────────────┐
 │ DATA (Repositories — abstract interface + impl)                    │
 │  Sensor · Location · VehicleBus · Connectivity · Battery ·         │
-│  Telephony · Contacts · Profile/MedicalID · AiTransport ·          │
+│  Telephony · Contacts · Profile/MedicalID ·                        │
+│  AiTransport (REST screen JSON) · VoiceSession (WebSocket voice) · │
 │  OfflineGuides · Routing/SafePlaces                                │
 └────────────────────────────────────────────────────────────────────┘
 ```
@@ -137,7 +140,8 @@ lib/
     telephony/
     contacts/
     profile/
-    ai_transport/             # GenUI SDK / model streaming
+    ai_transport/             # REST fast endpoint -> A2UI screen JSON
+    voice_session/            # WebSocket full-duplex live voice conversation
     offline_guides/
     routing/
   presentation/
@@ -264,8 +268,20 @@ class A2uiRenderer extends StatelessWidget {
 ### DataModel & bindings
 A client-side `DataModel` (a Riverpod Notifier holding a `Map<String, Object?>` keyed by data paths, e.g. `/incident/countdown`). Interactive widgets **only read/write declared paths**; they never call network actions directly — the orchestrator's interaction loop turns a write into the next compose pass. This matches the GenUI guidance on isolating side-effects.
 
-### Theme
-`SurfaceTheme` carries the severity tier, day/night, and driving-vs-parked density. Components style themselves from it; severity is conveyed by color **and** shape/iconography (never color alone).
+### Theme & layout
+`SurfaceTheme` carries the severity tier, day/night, driving-vs-parked density, and the **screen class** (the canonical target is a large-screen **landscape tablet / iPad**). Components style themselves from it; severity is conveyed by color **and** shape/iconography (never color alone).
+
+**Landscape-first layout.** The default Surface is a landscape composition tuned for tablet/iPad: a wide root that uses the horizontal space deliberately — e.g. a persistent safety rail (911 + share-location) on one side and the scenario content filling the rest — rather than a stacked phone column. The renderer is **responsive within landscape**: catalog components adapt to the available width/height using `LayoutBuilder` / `MediaQuery.sizeOf` and `Expanded`/`Flexible` (no hard-coded pixel sizes), so the same Surface renders correctly across the iPad / Android-tablet / head-unit size range without per-device layouts. The app **locks to landscape**; portrait is not a supported orientation for the emergency Surface.
+
+### Transport — two channels, two protocols
+The GenUI "Transport" pillar is split by workload, because the two interactions have opposite latency/shape requirements:
+
+| Channel | Protocol | Carries | Why |
+|---|---|---|---|
+| **Screen composition** | **REST** (fast, stateless request/response) | the prompt (classification + catalog manifest) → a complete A2UI **screen JSON** document in one response | Composition is a single, time-boxed, idempotent call. A fast REST endpoint is simpler to retry, cache, time-box, and fall back from than a long-lived stream — and it keeps the AI strictly off the safety critical path. |
+| **Live voice** | **WebSocket** (full-duplex, persistent) | bidirectional audio/voice + agent events for a live, hands-free conversation with the agent | Voice is an ongoing, low-latency, two-way session that must stream both directions concurrently; a persistent socket is the right fit. |
+
+The two channels are independent repositories (`AiTransportRepository`, `VoiceSessionRepository`) and fail independently: a dropped voice socket never blocks screen composition, and a slow/failed compose call never interrupts an active voice session. Both sit behind interfaces so the underlying provider (GenUI SDK / model endpoint) can be swapped without touching domain code.
 
 ---
 
@@ -298,7 +314,7 @@ Stream<EmergencyContext> emergencyContext(Ref ref) {
 | Vehicle bus / OBD-II | `VehicleBusRepository` | airbag deploy, temps, fuel/charge, warnings |
 | Connectivity/battery | `ConnectivityRepository` | offline & low-power layout switches |
 | Location type, time, weather | `LocationRepository` + provider | shoulder vs lot vs remote; night; storm/fire |
-| Voice / code word | `VoiceRepository` | intent, discreet SOS, hands-free |
+| Voice / code word | `VoiceSessionRepository` (WebSocket) | intent, discreet SOS, hands-free live agent conversation |
 | Wearable HR | `BiometricRepository` | medical corroboration |
 | Profile / Medical ID | `ProfileRepository` | EV vs ICE, contacts, allergies/conditions |
 
@@ -372,9 +388,20 @@ class SurfaceController extends _$SurfaceController {
 }
 ```
 
-`AiComposer` builds a structured prompt from `Classification` + a **catalog manifest** (the AI-facing descriptions of each component — written warm and intent-oriented, per the GenUI guidance), calls the model via `AiTransportRepository` with structured-output/streaming, and parses A2UI chunks into an `A2uiNode` tree. Streaming chunks update the Surface progressively; the renderer shows skeletons for not-yet-arrived nodes.
+`AiComposer` builds a structured prompt from `Classification` + a **catalog manifest** (the AI-facing descriptions of each component — written warm and intent-oriented, per the GenUI guidance), calls a **fast REST endpoint** via `AiTransportRepository`, and parses the returned A2UI **screen JSON** document into an `A2uiNode` tree. The call is request/response and time-boxed: a single fast endpoint returns the complete layout in one response, which the Supervisor validates before it can render. (The renderer still shows skeletons while the request is in flight and for any component whose own data binding is still resolving.)
 
-`AiTransportRepository` is an interface (`composeStream(prompt) -> Stream<A2uiChunk>`) so we can target the Flutter GenUI SDK / Gemini structured output now and swap providers later without touching domain code.
+```dart
+abstract interface class AiTransportRepository {
+  /// POSTs the prompt to the fast composition endpoint and returns the
+  /// complete A2UI screen-JSON document. Throws on transport/HTTP failure;
+  /// the caller time-boxes and falls back to the deterministic baseline.
+  Future<A2uiDocument> compose(ComposePrompt prompt);
+}
+```
+
+`AiTransportRepository` is an interface so we can target the Flutter GenUI SDK / model's REST endpoint now and swap providers later without touching domain code. Because composition is a plain idempotent REST call, it is trivial to retry, cache per `(classification, context-hash)`, and time-box — and a slow or failed call simply leaves the deterministic baseline on screen.
+
+**Live voice** is a separate concern handled by `VoiceSessionRepository` over a WebSocket (see §11), not by this composition channel.
 
 ---
 
@@ -425,8 +452,25 @@ This layer is the single most important thing to get right and the most heavily 
 ### Live location sharing & contacts
 - `ShareLocation` and `NotifyContacts` use cases; share is a revocable, clearly-indicated "on" state. Outbound channels (SMS/deeplink) behind repositories.
 
-### Voice proxy (incapacitated user)
-- TTS reads location + medical profile to dispatch; STT/wake-word for hands-free and code words. Behind `VoiceRepository`. Armed but never speaks PII until a call is active.
+### Voice proxy & live agent conversation (incapacitated / hands-free user)
+- **Live voice runs over a WebSocket** via `VoiceSessionRepository` — a persistent, full-duplex session that streams microphone audio up and agent audio/events down for a real-time, hands-free conversation with the agent. The interface exposes a session lifecycle and bidirectional streams:
+
+```dart
+abstract interface class VoiceSessionRepository {
+  /// Opens the WebSocket session; emits agent audio + structured events
+  /// (transcripts, intents, barge-in) for the duration of the session.
+  Stream<VoiceEvent> connect(VoiceSessionConfig config);
+
+  /// Streams captured mic audio frames up to the agent.
+  Future<void> sendAudio(Stream<AudioFrame> mic);
+
+  Future<void> close();
+}
+```
+
+- The voice session is **independent of screen composition**: it has its own socket and reconnect/backoff logic, so a dropped voice connection never blocks the REST compose channel and vice-versa. Voice intents surfaced as `VoiceEvent`s feed back into the orchestrator loop as `UserSignal`s (which may trigger a new REST compose pass).
+- On-device wake-word/code-word detection arms the session; TTS reads location + medical profile to dispatch. **Armed but never streams or speaks PII until a call/session is explicitly active and user-authorized.**
+- Offline or socket-unavailable: degrade to on-device TTS/STT for the core prompts; the live agent conversation is an online-only enhancement and its absence never removes a safety capability.
 
 ### Offline-first
 - On-device catalog + cached first-aid/mechanical guides + a lightweight on-device fallback classifier. A persistent **action queue** (e.g. roadside request) flushes when connectivity returns. Offline state is explicit in the UI.
@@ -435,12 +479,13 @@ This layer is the single most important thing to get right and the most heavily 
 
 ## 12. Cross-cutting concerns
 
+- **Landscape / large-screen first:** the app locks to landscape; the canonical layout targets tablet & iPad breakpoints and is responsive within landscape (`LayoutBuilder`/`MediaQuery`, no per-device layouts). The same Surface scales to the head unit. Portrait is unsupported for the emergency Surface.
 - **Driving-vs-parked enforcement:** density and interaction depth are gated by `VehicleState`; while driving, the renderer collapses to the minimal/voice-first variant automatically (also a Supervisor rule).
-- **Day/night + contrast:** theme-driven; meets automotive legibility at distance.
+- **Day/night + contrast:** theme-driven; meets large-screen tablet/automotive legibility at viewing distance.
 - **Localization:** all copy is parameterized; the AI injects localized strings, deterministic baselines use ARB. Emergency numbers and rights info are locale data.
 - **Accessibility:** large targets, semantics labels on every catalog component, voice as a first-class input.
 - **Observability:** structured event logging for each loop iteration (context → classification → which composer won → supervisor actions → render latency). Crash/ANR reporting. Redact PII. This is essential for debugging non-deterministic AI behavior in the field.
-- **Performance budget:** baseline Surface renders < 100 ms from classification; AI enrichment time-boxed at 3 s; 60 fps on target head-unit hardware.
+- **Performance budget:** baseline Surface renders < 100 ms from classification; AI enrichment time-boxed at 3 s; 60 fps on target tablet/iPad (and head-unit) hardware.
 
 ---
 
@@ -450,11 +495,12 @@ This layer is the single most important thing to get right and the most heavily 
 |---|---|
 | Decision engine | Exhaustive unit tests: context fixtures → expected `Classification`. Table-driven. |
 | Safety Supervisor | The crown jewels. Property/fuzz tests feeding **adversarial AI Surfaces** (unknown components, home-routing in threat mode, missing 911) and asserting every guardrail holds. |
-| Catalog widgets | Golden tests for every component × state (default/active/loading/empty) × day/night × driving/parked. |
+| Catalog widgets | Golden tests for every component × state (default/active/loading/empty) × day/night × driving/parked, at **landscape tablet & iPad breakpoints** (the canonical surface). |
 | Renderer | Parse-and-build tests from hand-authored A2UI JSON, including malformed/partial streams. |
 | Orchestrator loop | Integration tests with fake repositories; assert baseline renders before AI and AI never blocks safety. |
 | Scenario simulator | A `scenario_sim` harness that replays signal traces for each MVP scenario end-to-end (the primary acceptance gate per phase). |
-| AI composer | Contract tests against recorded model responses; verify graceful handling of timeouts, invalid JSON, and refusal. |
+| AI composer (REST) | Contract tests against recorded endpoint responses; verify graceful handling of timeouts, HTTP errors, invalid JSON, and refusal — all falling back to baseline. |
+| Voice session (WebSocket) | Fake socket server: assert session connect/reconnect/backoff, bidirectional audio streaming, intent events feeding the loop, and that a dropped socket never blocks REST composition or removes a safety capability. |
 
 ---
 
@@ -466,7 +512,7 @@ This layer is the single most important thing to get right and the most heavily 
 | LLM produces unsafe/invalid layout | Safety Supervisor validates and can bypass AI entirely; catalog allow-list. |
 | Emergency-calling regulation & inability to test live | Treat emergency number as data; integrate platform emergency APIs; countdown + cancel; fake telephony + test mode. |
 | False crash detection from sensor noise | Require corroboration (impulse + speed delta + bus signal); cancelable countdown before any auto-action. |
-| AAOS / head-unit fragmentation & certification | Abstract all platform access behind repositories; target a reference head unit first; projection mode as graceful-degraded path. |
+| AAOS / head-unit fragmentation & certification | Abstract all platform access behind repositories; ship on landscape tablet/iPad first (no head-unit dependency), then bring up a reference head unit reusing the same Surface; projection mode as graceful-degraded path. |
 | Driver distraction / safety review | Driving-mode density limits enforced in renderer + Supervisor; design review against automotive HMI guidelines. |
 | PII handling (medical ID, location, contacts) | On-device by default; explicit consent; redact in logs; share only when an incident is active and user-authorized. |
 
@@ -479,7 +525,7 @@ Each phase ends with a **demoable artifact** and explicit **exit criteria**. The
 ### Phase 0 — Foundations & rendering harness *(de-risk the renderer)*
 **Goal:** Prove the GenUI rendering pipeline with a mock transport, before any real catalog or AI.
 **Build:** Repo + melos workspace, CI (analyze/test/golden), `freezed`/`riverpod_generator` codegen pipeline, design tokens (`SurfaceTheme`), `A2uiNode` model, `A2uiRenderer`, `DataModel`, a `MockTransport` that emits hand-authored A2UI JSON.
-**Exit:** A hard-coded JSON layout renders on a tablet/AAOS emulator in landscape, day/night themes switch, data bindings update a value live.
+**Exit:** A hard-coded JSON layout renders on an **Android tablet and iPad in landscape** (orientation-locked), responsive across both breakpoints, day/night themes switch, data bindings update a value live.
 
 ### Phase 1 — Widget Catalog *(the vocabulary)*
 **Goal:** Implement the full MVP catalog with all states; validate against the design mockups.
@@ -489,21 +535,21 @@ Each phase ends with a **demoable artifact** and explicit **exit criteria**. The
 ### Phase 2 — Deterministic safety app *(works with zero AI)*
 **Goal:** A shippable, AI-free emergency app driven by sensors and the decision engine.
 **Build:** Signal repositories (sensor, location, connectivity, battery; vehicle bus stubbed), `contextAggregator`, `DecisionEngine` + severity/mode tables, `DeterministicComposer` (hand-built Surface per MVP scenario), the Orchestrator loop (baseline only), `scenario_sim` harness for all 8 MVP scenarios.
-**Exit:** All 8 MVP scenarios drive correct deterministic Surfaces end-to-end in the simulator and on-device; < 100 ms baseline render.
+**Exit:** All 8 MVP scenarios drive correct deterministic Surfaces end-to-end in the simulator and on a real **landscape Android tablet & iPad**; < 100 ms baseline render.
 
 ### Phase 3 — AI orchestration + Safety Supervisor
 **Goal:** Layer AI enrichment on top, safely.
-**Build:** `AiTransportRepository` against the Flutter GenUI SDK / model with streaming structured output, `AiComposer` (prompt from classification + manifest, A2UI parsing, progressive render), `SafetySupervisor` with full guardrail set, time-boxing + fallback wiring.
-**Exit:** AI-composed Surfaces render and stream; Supervisor adversarial test suite passes; pulling the network mid-incident degrades cleanly to baseline with no safety loss.
+**Build:** `AiTransportRepository` against the **fast REST composition endpoint** (prompt → complete A2UI screen JSON), `AiComposer` (prompt from classification + manifest, A2UI parsing), `SafetySupervisor` with full guardrail set, time-boxing + retry/cache + fallback wiring.
+**Exit:** AI-composed Surfaces render from the REST endpoint; Supervisor adversarial test suite passes; pulling the network mid-incident (slow/failed compose call) degrades cleanly to baseline with no safety loss.
 
 ### Phase 4 — Safety-critical subsystems
 **Goal:** Real escalation capability.
-**Build:** `TelephonyRepository` + `PlaceEmergencyCall` with countdown/cancel and emergency-number-as-data, `ShareLocation` + `NotifyContacts`, `VoiceRepository` (TTS proxy + STT/code word), offline guides + action queue.
-**Exit:** Full escalation flow works against fake/sandbox endpoints in test mode; offline flat-tire and won't-start flows complete with queued actions; voice proxy reads location/medical ID on an active (sandbox) call.
+**Build:** `TelephonyRepository` + `PlaceEmergencyCall` with countdown/cancel and emergency-number-as-data, `ShareLocation` + `NotifyContacts`, `VoiceSessionRepository` (**WebSocket live agent conversation** + on-device TTS/STT/code-word fallback, reconnect/backoff), offline guides + action queue.
+**Exit:** Full escalation flow works against fake/sandbox endpoints in test mode; offline flat-tire and won't-start flows complete with queued actions; live voice session connects over WebSocket and the proxy reads location/medical ID on an active (sandbox) call; a dropped voice socket never blocks screen composition.
 
 ### Phase 5 — Automotive integration & hardening
-**Goal:** Run as a real infotainment app.
-**Build:** AAOS embedding, `VehicleBusRepository` against `CarPropertyManager` (airbag/temps/fuel/charge), driving-vs-parked enforcement end-to-end, projection-mode degradation, day/night/contrast tuning, localization (ARB + locale emergency data), accessibility pass, observability/telemetry, performance tuning to 60 fps on reference hardware.
+**Goal:** Run the existing landscape Surface as a real infotainment app on the head unit.
+**Build:** AAOS embedding (**reusing the tablet-landscape Surface unchanged** — the head unit is another landscape large screen), `VehicleBusRepository` against `CarPropertyManager` (airbag/temps/fuel/charge), driving-vs-parked enforcement end-to-end, projection-mode degradation, day/night/contrast tuning, localization (ARB + locale emergency data), accessibility pass, observability/telemetry, performance tuning to 60 fps on reference hardware.
 **Exit:** Runs on the reference head unit; vehicle signals drive classification; HMI distraction review passes; telemetry dashboards live.
 
 ### Phase 6 — Scenario expansion, QA & release
@@ -537,6 +583,8 @@ Each phase ends with a **demoable artifact** and explicit **exit criteria**. The
 | Architecture | Feature-first clean architecture, Repository pattern |
 | Reactive streams | `rxdart` for signal fusion |
 | GenUI | Flutter GenUI SDK (A2UI structured layout) behind `AiTransportRepository` |
+| Screen-JSON transport | **REST** fast endpoint (request/response) behind `AiTransportRepository`; idempotent, time-boxed, cacheable |
+| Live-voice transport | **WebSocket** (full-duplex) behind `VoiceSessionRepository`; independent reconnect/backoff |
 | Maps/routing | Pluggable behind `RoutingRepository` (safe-places only) |
 | Telephony/location | Platform APIs behind repositories; emergency number as locale data |
 | Testing | `flutter_test`, golden tests, custom `scenario_sim` harness |
