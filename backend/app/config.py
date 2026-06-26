@@ -29,6 +29,19 @@ class Settings(BaseSettings):
     # down to your real origins before deploying.
     cors_allow_origins: str = "*"
 
+    # Deepgram Voice Agent (/v1/voice/agent). Key at https://deepgram.com
+    deepgram_api_key: str = ""
+
+    voice_listen_model: str = "nova-3"
+    voice_think_model: str = "gpt-4o-mini"
+    voice_think_temperature: float = 0.3
+    voice_speak_model: str = "aura-2-thalia-en"
+    voice_language: str = "en"
+    voice_greeting: str = "Emergency assistant here. Tell me what's happening."
+    voice_input_sample_rate: int = 16000
+    voice_output_sample_rate: int = 24000
+    voice_dispatcher_prompt: str = ""
+
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
 

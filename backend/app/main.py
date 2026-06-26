@@ -15,13 +15,14 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from .config import settings
 from .featherless import stream_deltas
 from .schemas import ChatRequest
+from .voice_agent import proxy_voice_session
 
 HTTP_TIMEOUT = httpx.Timeout(connect=10.0, read=300.0, write=10.0, pool=10.0)
 
@@ -49,8 +50,18 @@ app.add_middleware(
 
 @app.get("/health")
 async def health() -> dict:
-    """Liveness check; also reports whether the API key is configured."""
-    return {"status": "ok", "model_key_configured": bool(settings.featherless_api_key)}
+    """Liveness check; also reports whether provider API keys are configured."""
+    return {
+        "status": "ok",
+        "model_key_configured": bool(settings.featherless_api_key),
+        "voice_key_configured": bool(settings.deepgram_api_key),
+    }
+
+
+@app.websocket("/v1/voice/agent")
+async def voice_agent(websocket: WebSocket):
+    """Bidirectional proxy to Deepgram Voice Agent (server holds the API key)."""
+    await proxy_voice_session(websocket)
 
 
 def _ndjson(obj: dict) -> str:
