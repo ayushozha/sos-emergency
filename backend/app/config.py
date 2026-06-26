@@ -29,17 +29,26 @@ class Settings(BaseSettings):
     # down to your real origins before deploying.
     cors_allow_origins: str = "*"
 
-    # Deepgram Voice Agent (/v1/voice/agent). Key at https://deepgram.com
+    # --- Deepgram Voice Agent (the hands-free voice layer) -------------------
+    # Secret. Required for /v1/voice/agent. Get one at https://deepgram.com.
     deepgram_api_key: str = ""
 
+    # The Deepgram-managed conversational pipeline. Deepgram runs STT -> LLM
+    # ("think") -> TTS over one websocket; our Featherless A2UI pipeline only
+    # gets pulled in when the think model calls render_emergency_ui.
     voice_listen_model: str = "nova-3"
     voice_think_model: str = "gpt-4o-mini"
     voice_think_temperature: float = 0.3
     voice_speak_model: str = "aura-2-thalia-en"
     voice_language: str = "en"
     voice_greeting: str = "Emergency assistant here. Tell me what's happening."
+
+    # Audio formats on the wire. Input = mic from Flutter; output = TTS to play.
     voice_input_sample_rate: int = 16000
     voice_output_sample_rate: int = 24000
+
+    # Optional override for the emergency-dispatcher "think" prompt. Empty means
+    # use the built-in default in app/voice_prompt.py.
     voice_dispatcher_prompt: str = ""
 
     def cors_origins_list(self) -> list[str]:

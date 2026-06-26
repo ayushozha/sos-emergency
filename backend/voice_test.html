@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SOS Emergency — backend test harness</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 0; padding: 1.5rem; max-width: 1100px; }
+  h1 { font-size: 1.25rem; margin: 0 0 1rem; }
+  .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .col { flex: 1 1 460px; min-width: 320px; }
+  fieldset { border: 1px solid #8884; border-radius: 8px; margin: 0 0 1rem; padding: 1rem; }
+  legend { font-weight: 600; padding: 0 .4rem; }
+  label { display: block; font-size: 12px; opacity: .8; margin: .6rem 0 .2rem; }
+  input, textarea, button { font: inherit; width: 100%; box-sizing: border-box;
+    padding: .5rem; border-radius: 6px; border: 1px solid #8886; background: transparent; color: inherit; }
+  textarea { resize: vertical; }
+  button { cursor: pointer; width: auto; padding: .5rem 1rem; }
+  button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .btns { display: flex; gap: .5rem; margin-top: .6rem; }
+  pre { background: #8881; border-radius: 6px; padding: .6rem; max-height: 280px; overflow: auto;
+    white-space: pre-wrap; word-break: break-word; margin: .3rem 0 0; }
+  .status { font-weight: 600; }
+  .dot { display:inline-block; width:.7em; height:.7em; border-radius:50%; margin-right:.4em; vertical-align: baseline; background:#999; }
+  .on { background:#16a34a; } .off { background:#999; } .err { background:#dc2626; }
+  .muted { opacity:.6; font-size:12px; }
+</style>
+</head>
+<body>
+<h1>SOS Emergency — backend test harness</h1>
+
+<label>Backend base URL</label>
+<input id="baseUrl" value="http://127.0.0.1:8000" style="max-width:380px" />
+
+<div class="row" style="margin-top:1rem">
+  <!-- ----------------------------------------------------------------- -->
+  <div class="col">
+    <fieldset>
+      <legend>Voice agent — WS /v1/voice/agent</legend>
+      <label>System prompt (A2UI render prompt, sent on connect)</label>
+      <textarea id="vSystem" rows="3">You are an emergency-guidance assistant. Reply ONLY with a compact JSON object describing UI to render (no prose, no markdown fences). Use keys like {"title": ..., "steps": [...]}.</textarea>
+      <label>Model override (blank = server default)</label>
+      <input id="vModel" placeholder="(server default)" />
+      <div class="btns">
+        <button id="connectBtn" class="primary">Connect &amp; talk</button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+      </div>
+      <p class="status" style="margin-top:.8rem"><span id="dot" class="dot off"></span><span id="status">not connected</span></p>
+      <p class="muted">Continuous mic → 16 kHz linear16 binary frames. TTS (24 kHz) plays back gapless.</p>
+
+      <label>Transcript / events</label>
+      <pre id="vLog"></pre>
+      <label>Rendered A2UI</label>
+      <pre id="vA2ui"></pre>
+    </fieldset>
+  </div>
+
+  <!-- ----------------------------------------------------------------- -->
+  <div class="col">
+    <fieldset>
+      <legend>Text / A2UI — POST /v1/chat/stream</legend>
+      <label>System prompt</label>
+      <textarea id="tSystem" rows="3">You are an emergency-guidance assistant. Reply ONLY with a compact JSON object describing UI to render (no prose, no markdown fences). Use keys like {"title": ..., "steps": [...]}.</textarea>
+      <label>Model override (blank = server default)</label>
+      <input id="tModel" placeholder="(server default)" />
+      <label>Message</label>
+      <input id="tMsg" value="My kitchen is on fire, what do I do?" />
+      <div class="btns"><button id="sendBtn" class="primary">Send</button></div>
+      <label>Raw A2UI (accumulated deltas)</label>
+      <pre id="tA2ui"></pre>
+      <label>Stream log</label>
+      <pre id="tLog"></pre>
+    </fieldset>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const baseUrl = () => $("baseUrl").value.replace(/\/+$/, "");
+const wsUrl = () => baseUrl().replace(/^http/, "ws") + "/v1/voice/agent";
+
+// Backend audio contract (mirrors app/config.py).
+const MIC_RATE = 16000;   // send UP
+const TTS_RATE = 24000;   // receive DOWN
+
+// ------------------------------------------------------------------ //
+// Text / A2UI path
+// ------------------------------------------------------------------ //
+$("sendBtn").onclick = async () => {
+  $("tA2ui").textContent = "";
+  $("tLog").textContent = "";
+  const body = { system: $("tSystem").value, messages: [{ role: "user", text: $("tMsg").value }] };
+  if ($("tModel").value.trim()) body.model = $("tModel").value.trim();
+
+  let resp;
+  try {
+    resp = await fetch(baseUrl() + "/v1/chat/stream", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+  } catch (e) { $("tLog").textContent = "Request failed: " + e; return; }
+  if (!resp.ok) { $("tLog").textContent = "HTTP " + resp.status + ": " + (await resp.text()); return; }
+
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", acc = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+      if (!line) continue;
+      let obj; try { obj = JSON.parse(line); } catch { $("tLog").textContent += "[unparsed] " + line + "\n"; continue; }
+      if (obj.delta != null) { acc += obj.delta; $("tA2ui").textContent = acc; }
+      else if (obj.done) $("tLog").textContent += "✓ done\n";
+      else if (obj.error) $("tLog").textContent += "✗ error: " + obj.error + "\n";
+    }
+  }
+};
+
+// ------------------------------------------------------------------ //
+// Voice path
+// ------------------------------------------------------------------ //
+let ws = null, micCtx = null, micStream = null, micNode = null, micSource = null;
+let outCtx = null, playhead = 0;
+
+function log(line) { $("vLog").textContent += line + "\n"; $("vLog").scrollTop = $("vLog").scrollHeight; }
+function setStatus(txt, cls) { $("status").textContent = txt; $("dot").className = "dot " + cls; }
+
+function downsample(f32, inRate, outRate) {
+  if (inRate === outRate) return f32;
+  const ratio = inRate / outRate;
+  const out = new Float32Array(Math.round(f32.length / ratio));
+  for (let i = 0; i < out.length; i++) {
+    const idx = i * ratio, i0 = Math.floor(idx), i1 = Math.min(i0 + 1, f32.length - 1);
+    const frac = idx - i0;
+    out[i] = f32[i0] * (1 - frac) + f32[i1] * frac;
+  }
+  return out;
+}
+
+function playPCM(int16) {
+  if (!outCtx) return;
+  const f32 = new Float32Array(int16.length);
+  for (let i = 0; i < int16.length; i++) f32[i] = int16[i] / 0x8000;
+  const buf = outCtx.createBuffer(1, f32.length, TTS_RATE);
+  buf.copyToChannel(f32, 0);
+  const src = outCtx.createBufferSource();
+  src.buffer = buf; src.connect(outCtx.destination);
+  const now = outCtx.currentTime;
+  if (playhead < now) playhead = now + 0.04;   // small lead-in to avoid underrun
+  src.start(playhead);
+  playhead += buf.duration;
+}
+
+function handleDown(data) {
+  if (data instanceof ArrayBuffer) {
+    let bytes = new Uint8Array(data);
+    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) bytes = bytes.subarray(44); // RIFF
+    const n = bytes.byteLength & ~1; // even
+    playPCM(new Int16Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + n)));
+    return;
+  }
+  let obj; try { obj = JSON.parse(data); } catch { log("[unparsed] " + data); return; }
+  if (obj.delta != null) { $("vA2ui").textContent += obj.delta; }
+  else if (obj.render_start) { $("vA2ui").textContent = ""; log("▶ render_start: " + JSON.stringify(obj.render_start)); }
+  else if (obj.done) log("✓ render done");
+  else if (obj.transcript) log("💬 " + obj.transcript.role + ": " + obj.transcript.content);
+  else if (obj.event) log("· " + obj.event);
+  else if (obj.error) log("✗ " + obj.error);
+  else log("? " + data);
+}
+
+async function connect() {
+  $("vLog").textContent = ""; $("vA2ui").textContent = "";
+  setStatus("connecting…", "off");
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
+  } catch (e) { setStatus("mic permission denied", "err"); log("✗ getUserMedia: " + e); return; }
+
+  ws = new WebSocket(wsUrl());
+  ws.binaryType = "arraybuffer";
+  ws.onmessage = (ev) => handleDown(ev.data);
+  ws.onclose = () => { setStatus("disconnected", "off"); cleanupMic(); toggle(false); };
+  ws.onerror = () => { setStatus("websocket error", "err"); };
+  ws.onopen = () => {
+    const cfg = { system: $("vSystem").value, model: $("vModel").value.trim() || null };
+    ws.send(JSON.stringify(cfg));
+    log("→ connected, sent config (model=" + (cfg.model || "default") + ")");
+    setStatus("connected — speak now", "on");
+    startMic();
+    toggle(true);
+  };
+}
+
+function startMic() {
+  outCtx = new (window.AudioContext || window.webkitAudioContext)();
+  playhead = 0;
+  micCtx = new (window.AudioContext || window.webkitAudioContext)();
+  micSource = micCtx.createMediaStreamSource(micStream);
+  micNode = micCtx.createScriptProcessor(4096, 1, 1); // deprecated but fine for a dev harness
+  micNode.onaudioprocess = (e) => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const ds = downsample(e.inputBuffer.getChannelData(0), micCtx.sampleRate, MIC_RATE);
+    const i16 = new Int16Array(ds.length);
+    for (let i = 0; i < ds.length; i++) { const s = Math.max(-1, Math.min(1, ds[i])); i16[i] = s * 0x7fff; }
+    ws.send(i16.buffer);
+  };
+  micSource.connect(micNode);
+  micNode.connect(micCtx.destination); // required for onaudioprocess to fire in some browsers
+}
+
+function cleanupMic() {
+  try { micNode && micNode.disconnect(); } catch {}
+  try { micSource && micSource.disconnect(); } catch {}
+  try { micStream && micStream.getTracks().forEach((t) => t.stop()); } catch {}
+  try { micCtx && micCtx.close(); } catch {}
+  try { outCtx && outCtx.close(); } catch {}
+  micNode = micSource = micStream = micCtx = outCtx = null;
+}
+
+function disconnect() { try { ws && ws.close(); } catch {} cleanupMic(); }
+function toggle(connected) { $("connectBtn").disabled = connected; $("disconnectBtn").disabled = !connected; }
+
+$("connectBtn").onclick = connect;
+$("disconnectBtn").onclick = disconnect;
+</script>
+</body>
+</html>
