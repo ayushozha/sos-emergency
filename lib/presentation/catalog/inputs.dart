@@ -7,28 +7,33 @@ import 'package:sos_emergency/presentation/catalog/shared/sos_chrome.dart';
 import 'package:sos_emergency/presentation/catalog/shared/sos_icons.dart';
 import 'package:sos_emergency/presentation/surface/a2ui_renderer.dart';
 import 'package:sos_emergency/presentation/surface/binding_resolver.dart';
+import 'package:sos_emergency/presentation/surface/surface_actions.dart';
 import 'package:sos_emergency/presentation/surface/surface_theme_providers.dart';
 
 /// `BigChoiceCard` — a large, icon-led, mutually-exclusive choice. One tap
-/// selects and advances; no submit step. Inputs: `label`, `icon`, `selected?`.
+/// selects and advances; no submit step. Inputs: `label`, `icon`, `selected?`,
+/// `scenario?` (navigation target).
 Widget buildBigChoiceCard(BuildContext context, WidgetRef ref, A2uiNode node) {
   final palette = ref.watch(surfacePaletteProvider);
   final label = ref.resolveString(node, 'label') ?? '';
-  final icon = SosIcons.resolve(ref.resolveString(node, 'icon'));
+  final iconName = ref.resolveString(node, 'icon');
   final selected = ref.resolve(node, 'selected') == true;
+  final scenario = ref.resolveString(node, 'scenario');
+  final tint = _choiceTint(iconName);
 
-  return Container(
+  final card = Container(
     constraints: const BoxConstraints(minHeight: 150),
-    padding: const EdgeInsets.all(SosTokens.space4),
+    padding: const EdgeInsets.all(SosTokens.space5),
     decoration: BoxDecoration(
-      color: palette.surface,
+      gradient: SosShadows.surfaceGradient(palette),
       borderRadius: BorderRadius.circular(SosTokens.radiusLg),
       border: Border.all(
         color: selected
             ? palette.info
-            : palette.textMuted.withValues(alpha: 0.16),
+            : palette.textMuted.withValues(alpha: 0.12),
         width: selected ? 2 : 1,
       ),
+      boxShadow: SosShadows.soft(palette),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,17 +43,40 @@ Widget buildBigChoiceCard(BuildContext context, WidgetRef ref, A2uiNode node) {
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: palette.tray,
+            color: tint.bg,
             borderRadius: BorderRadius.circular(SosTokens.radiusSm),
           ),
-          child: Icon(icon, color: palette.textMuted, size: 26),
+          child: Icon(SosIcons.resolve(iconName), color: tint.fg, size: 26),
         ),
         const SizedBox(height: SosTokens.space3),
         Text(label, style: SosText.title(palette.text)),
       ],
     ),
   );
+
+  if (scenario == null) return card;
+  return Material(
+    color: Colors.transparent,
+    borderRadius: BorderRadius.circular(SosTokens.radiusLg),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(SosTokens.radiusLg),
+      onTap: () => ref.navigateToScenarioNamed(scenario),
+      child: card,
+    ),
+  );
 }
+
+/// Category icon tint for a triage choice, matching the design's coloured icon
+/// chips (crash → orange, medical → red, threat → blue, else neutral).
+({Color bg, Color fg}) _choiceTint(String? icon) => switch (icon) {
+  'crash' => (bg: const Color(0xFFFBEDDD), fg: const Color(0xFFE07B3C)),
+  'medical' => (bg: const Color(0xFFFBE5E3), fg: const Color(0xFFD6443D)),
+  'unsafe' || 'followed' => (
+    bg: const Color(0xFFE2ECF7),
+    fg: const Color(0xFF3A7BD0),
+  ),
+  _ => (bg: const Color(0xFFEEF1F4), fg: const Color(0xFF5B6B7A)),
+};
 
 /// `ChoiceGrid` — arranges nested `BigChoiceCard`s in a fixed-column grid; the
 /// opening "What's happening?" surface. Input: `columns` (default 4).
