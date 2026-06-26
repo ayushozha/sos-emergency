@@ -11,6 +11,9 @@ import 'package:sos_emergency/domain/orchestrator/scenario_library.dart';
 
 part 'orchestrator.g.dart';
 
+/// How the running app chooses what to paint in [SurfaceHost].
+enum SurfaceViewMode { live, handoff, catalog }
+
 @Riverpod(keepAlive: true)
 DecisionEngine decisionEngine(Ref ref) => const DecisionEngine();
 
@@ -25,6 +28,24 @@ class DemoScenario extends _$DemoScenario {
 
   // ignore: use_setters_to_change_properties
   void select(ScenarioClass scenario) => state = scenario;
+}
+
+@Riverpod(keepAlive: true)
+class SurfaceViewModeController extends _$SurfaceViewModeController {
+  @override
+  SurfaceViewMode build() => SurfaceViewMode.handoff;
+
+  // ignore: use_setters_to_change_properties
+  void select(SurfaceViewMode mode) => state = mode;
+}
+
+@Riverpod(keepAlive: true)
+class HandoffScreenPicker extends _$HandoffScreenPicker {
+  @override
+  String build() => 'opening_triage';
+
+  // ignore: use_setters_to_change_properties
+  void select(String name) => state = name;
 }
 
 @Riverpod(keepAlive: true)

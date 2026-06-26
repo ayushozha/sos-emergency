@@ -150,6 +150,112 @@ abstract class _$DemoScenario extends $Notifier<ScenarioClass> {
   }
 }
 
+@ProviderFor(SurfaceViewModeController)
+final surfaceViewModeControllerProvider = SurfaceViewModeControllerProvider._();
+
+final class SurfaceViewModeControllerProvider
+    extends $NotifierProvider<SurfaceViewModeController, SurfaceViewMode> {
+  SurfaceViewModeControllerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'surfaceViewModeControllerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$surfaceViewModeControllerHash();
+
+  @$internal
+  @override
+  SurfaceViewModeController create() => SurfaceViewModeController();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(SurfaceViewMode value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<SurfaceViewMode>(value),
+    );
+  }
+}
+
+String _$surfaceViewModeControllerHash() =>
+    r'b5312ffbf27495e000c3bc745df056156d106b0b';
+
+abstract class _$SurfaceViewModeController extends $Notifier<SurfaceViewMode> {
+  SurfaceViewMode build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<SurfaceViewMode, SurfaceViewMode>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<SurfaceViewMode, SurfaceViewMode>,
+              SurfaceViewMode,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}
+
+@ProviderFor(HandoffScreenPicker)
+final handoffScreenPickerProvider = HandoffScreenPickerProvider._();
+
+final class HandoffScreenPickerProvider
+    extends $NotifierProvider<HandoffScreenPicker, String> {
+  HandoffScreenPickerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'handoffScreenPickerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$handoffScreenPickerHash();
+
+  @$internal
+  @override
+  HandoffScreenPicker create() => HandoffScreenPicker();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(String value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<String>(value),
+    );
+  }
+}
+
+String _$handoffScreenPickerHash() =>
+    r'c03ca2662289ef645e5b1c228706a946fda88ea1';
+
+abstract class _$HandoffScreenPicker extends $Notifier<String> {
+  String build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<String, String>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<String, String>,
+              String,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}
+
 @ProviderFor(emergencyContextRepository)
 final emergencyContextRepositoryProvider =
     EmergencyContextRepositoryProvider._();
