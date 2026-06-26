@@ -10,10 +10,11 @@ import logging
 import re
 from collections.abc import Awaitable, Callable
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import httpx
 from fastapi import WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 
 from .api_models import (
     Classification,
@@ -58,6 +59,11 @@ _EVENT_MAP = {
     "AgentThinking": "thinking",
     "AgentStartedSpeaking": "vad_stop",
 }
+
+
+def _wire(obj: BaseModel) -> dict[str, Any]:
+    """JSON-safe dict (UUID/datetime → strings) for WebSocket frames."""
+    return obj.model_dump(mode="json")
 
 
 def _infer_intent(text: str) -> VoiceIntent | None:
@@ -108,7 +114,7 @@ async def handle_voice_session(
                 code="unauthorized",
                 message="Voice backend keys are not configured.",
                 fatal=True,
-            ).model_dump()
+            ).model_dump(mode="json")
         )
         await ws.close()
         return
@@ -127,7 +133,7 @@ async def handle_voice_session(
             VoiceAudioChunkOut(
                 seq=audio_out_seq,
                 audio=base64.b64encode(chunk).decode("ascii"),
-            ).model_dump()
+            ).model_dump(mode="json")
         )
         audio_out_seq += 1
 
@@ -156,7 +162,7 @@ async def handle_voice_session(
                 await send_json(
                     {
                         "type": "compose",
-                        "surface": surface.model_dump(),
+                        "surface": surface.model_dump(mode="json"),
                     }
                 )
         except Exception:
@@ -192,20 +198,22 @@ async def handle_voice_session(
                     role=mapped_role,
                     text=content,
                     isFinal=True,
-                ).model_dump()
+                ).model_dump(mode="json")
             )
             if mapped_role == "user":
                 intent = _infer_intent(content)
                 if intent is not None:
-                    await send_json(intent.model_dump())
+                    await send_json(_wire(intent))
         elif msg_type in _EVENT_MAP:
-            await send_json(VoiceEvent(name=_EVENT_MAP[msg_type]).model_dump())
+            await send_json(_wire(VoiceEvent(name=_EVENT_MAP[msg_type])))
         elif msg_type in ("Error", "Warning"):
             await send_json(
-                VoiceError(
-                    code="upstream_error",
-                    message=str(getattr(msg, "description", msg)),
-                ).model_dump()
+                _wire(
+                    VoiceError(
+                        code="upstream_error",
+                        message=str(getattr(msg, "description", msg)),
+                    )
+                )
             )
 
     closed_reason = "completed"
@@ -226,7 +234,7 @@ async def handle_voice_session(
                 parsed = _parse_client_frame(json.loads(text))
             except (ValueError, json.JSONDecodeError) as error:
                 await send_json(
-                    VoiceError(code="invalid_frame", message=str(error)).model_dump()
+                    _wire(VoiceError(code="invalid_frame", message=str(error)))
                 )
                 continue
             if isinstance(parsed, VoiceSessionStart):
@@ -255,7 +263,7 @@ async def handle_voice_session(
                             "sampleRate": config.sampleRate,
                             "codec": config.codec,
                         },
-                    ).model_dump()
+                    ).model_dump(mode="json")
                 )
                 break
 
@@ -278,21 +286,14 @@ async def handle_voice_session(
                     await send_json(
                         VoiceError(
                             code="invalid_frame", message=str(error)
-                        ).model_dump()
+                        ).model_dump(mode="json")
                     )
                     continue
 
                 if isinstance(parsed, VoiceAudioChunkIn):
                     await session.send_audio(base64.b64decode(parsed.audio))
                 elif isinstance(parsed, VoiceTextIn):
-                    await send_json(
-                        VoiceTranscript(
-                            role="user", text=parsed.text, isFinal=True
-                        ).model_dump()
-                    )
-                    intent = _infer_intent(parsed.text)
-                    if intent is not None:
-                        await send_json(intent.model_dump())
+                    await session.send_inject_user_message(parsed.text)
                 elif isinstance(parsed, VoiceControlIn):
                     if parsed.action == "cancel":
                         closed_reason = "client_request"
@@ -311,7 +312,7 @@ async def handle_voice_session(
                     code="session_failed",
                     message=str(error),
                     fatal=True,
-                ).model_dump()
+                ).model_dump(mode="json")
             )
     finally:
         for task in list(render_tasks):
@@ -320,7 +321,7 @@ async def handle_voice_session(
             await asyncio.gather(*render_tasks, return_exceptions=True)
         with contextlib.suppress(Exception):
             await send_json(
-                VoiceSessionClosed(reason=closed_reason).model_dump()
+                _wire(VoiceSessionClosed(reason=closed_reason))
             )
         if on_session_end:
             on_session_end()

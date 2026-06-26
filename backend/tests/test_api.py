@@ -1,5 +1,10 @@
 """API contract tests (no live Featherless/Deepgram keys required)."""
 
+import json
+from uuid import uuid4
+
+from app.api_models import VoiceSessionReady
+
 
 def test_health_liveness(client):
     resp = client.get("/health")
@@ -51,6 +56,16 @@ def test_compose_non_stream_fallback_surface(client):
         body = resp.json()
         assert body["surface"]["type"] == "EmergencyRoot"
         assert body["finishReason"] in ("complete", "timeout", "refused")
+
+
+def test_voice_session_ready_uuid_is_json_safe():
+    payload = VoiceSessionReady(
+        sessionId=uuid4(),
+        config={"sampleRate": 16000, "codec": "pcm16"},
+    ).model_dump(mode="json")
+    encoded = json.dumps(payload)
+    assert '"session.ready"' in encoded
+    assert "sessionId" in encoded
 
 
 def test_compose_sse_stream(client):

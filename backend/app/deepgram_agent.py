@@ -20,6 +20,7 @@ from typing import Any
 
 from deepgram import AsyncDeepgramClient
 from deepgram.agent.v1.types import (
+    AgentV1InjectUserMessage,
     AgentV1Settings,
     AgentV1SendFunctionCallResponse,
     AgentV1SettingsAgent,
@@ -143,6 +144,13 @@ class DeepgramAgentSession:
         """Forward a chunk of mic audio (linear16 PCM) to the agent."""
         if self._agent is not None:
             await self._agent.send_media(chunk)
+
+    async def send_inject_user_message(self, content: str) -> None:
+        """Inject a user utterance so the agent responds as if the user spoke it."""
+        if self._agent is not None:
+            await self._agent.send_inject_user_message(
+                AgentV1InjectUserMessage(content=content)
+            )
 
     async def send_function_call_response(
         self, *, call_id: str, name: str, content: str
