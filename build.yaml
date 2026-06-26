@@ -1,0 +1,8 @@
+targets:
+  $default:
+    builders:
+      json_serializable:
+        options:
+          # Serialize nested freezed objects via their toJson() (required for
+          # the API DTOs, which nest Classification / A2uiNode / configs).
+          explicit_to_json: true

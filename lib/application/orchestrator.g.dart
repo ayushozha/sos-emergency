@@ -298,7 +298,7 @@ final class SurfaceControllerProvider
   }
 }
 
-String _$surfaceControllerHash() => r'26522680f6261129b3cff35c9a14ff3372909749';
+String _$surfaceControllerHash() => r'9d3a50b1429aec3e484b5ad989c50bd0c2e37a18';
 
 /// The orchestrator's baseline loop: sense → classify → compose → render. Holds
 /// the current deterministic [Surface] and recomputes it whenever the fused

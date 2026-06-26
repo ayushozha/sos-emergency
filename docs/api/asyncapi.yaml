@@ -1,0 +1,285 @@
+asyncapi: 2.6.0
+info:
+  title: SOS Emergency — Live Voice Agent
+  version: 1.0.0
+  description: >
+    Full-duplex WebSocket session for live voice conversation with the agent
+    (the VoiceSessionRepository channel). Both sides exchange JSON text frames
+    discriminated by `type`. Independent of the REST composition channel: a
+    dropped voice socket never blocks screen composition. Voice intents re-enter
+    the deterministic loop as UserSignals.
+servers:
+  production:
+    url: api.sos.local
+    protocol: wss
+    description: Production WebSocket endpoint.
+
+channels:
+  /v1/voice/agent:
+    description: The live voice session. Open the socket, then exchange frames.
+    publish:
+      operationId: sendClientFrame
+      summary: Frames the client sends to the agent.
+      message:
+        oneOf:
+          - $ref: '#/components/messages/SessionStart'
+          - $ref: '#/components/messages/ClientAudioChunk'
+          - $ref: '#/components/messages/AudioCommit'
+          - $ref: '#/components/messages/ClientText'
+          - $ref: '#/components/messages/Control'
+          - $ref: '#/components/messages/SessionEnd'
+    subscribe:
+      operationId: receiveServerFrame
+      summary: Frames the agent sends to the client.
+      message:
+        oneOf:
+          - $ref: '#/components/messages/SessionReady'
+          - $ref: '#/components/messages/Transcript'
+          - $ref: '#/components/messages/ServerAudioChunk'
+          - $ref: '#/components/messages/Intent'
+          - $ref: '#/components/messages/Event'
+          - $ref: '#/components/messages/ServerError'
+          - $ref: '#/components/messages/SessionClosed'
+
+components:
+  messages:
+    # ---- client -> server ----
+    SessionStart:
+      name: session.start
+      title: Open a voice session
+      payload:
+        $ref: '#/components/schemas/SessionStartFrame'
+    ClientAudioChunk:
+      name: audio.chunk
+      title: A frame of mic audio
+      payload:
+        $ref: '#/components/schemas/AudioChunkFrame'
+    AudioCommit:
+      name: audio.commit
+      title: End of the user utterance (VAD or push-to-talk release)
+      payload:
+        $ref: '#/components/schemas/AudioCommitFrame'
+    ClientText:
+      name: text
+      title: Typed input fallback
+      payload:
+        $ref: '#/components/schemas/TextFrame'
+    Control:
+      name: control
+      title: Session control (mute / barge-in / cancel)
+      payload:
+        $ref: '#/components/schemas/ControlFrame'
+    SessionEnd:
+      name: session.end
+      title: Close the session
+      payload:
+        $ref: '#/components/schemas/SessionEndFrame'
+
+    # ---- server -> client ----
+    SessionReady:
+      name: session.ready
+      payload:
+        $ref: '#/components/schemas/SessionReadyFrame'
+    Transcript:
+      name: transcript
+      payload:
+        $ref: '#/components/schemas/TranscriptFrame'
+    ServerAudioChunk:
+      name: audio.chunk
+      title: A frame of agent TTS audio
+      payload:
+        $ref: '#/components/schemas/AudioChunkFrame'
+    Intent:
+      name: intent
+      title: Surfaced intent fed back into the orchestrator loop
+      payload:
+        $ref: '#/components/schemas/IntentFrame'
+    Event:
+      name: event
+      payload:
+        $ref: '#/components/schemas/EventFrame'
+    ServerError:
+      name: error
+      payload:
+        $ref: '#/components/schemas/ErrorFrame'
+    SessionClosed:
+      name: session.closed
+      payload:
+        $ref: '#/components/schemas/SessionClosedFrame'
+
+  schemas:
+    Severity:
+      type: string
+      enum: [neutral, moderate, high, critical]
+    AudioCodec:
+      type: string
+      enum: [pcm16, opus]
+
+    SessionConfig:
+      type: object
+      required: [locale, sampleRate, codec]
+      properties:
+        locale:
+          type: string
+          examples: ['en-US']
+        sampleRate:
+          type: integer
+          enum: [8000, 16000, 24000, 48000]
+        codec:
+          $ref: '#/components/schemas/AudioCodec'
+        incidentId:
+          type: string
+          format: uuid
+        tier:
+          $ref: '#/components/schemas/Severity'
+
+    SessionStartFrame:
+      type: object
+      required: [type, config]
+      properties:
+        type:
+          const: session.start
+        config:
+          $ref: '#/components/schemas/SessionConfig'
+      additionalProperties: false
+
+    AudioChunkFrame:
+      type: object
+      required: [type, seq, audio]
+      properties:
+        type:
+          const: audio.chunk
+        seq:
+          type: integer
+          minimum: 0
+        audio:
+          type: string
+          contentEncoding: base64
+          description: One frame of audio in the negotiated codec.
+      additionalProperties: false
+
+    AudioCommitFrame:
+      type: object
+      required: [type]
+      properties:
+        type:
+          const: audio.commit
+      additionalProperties: false
+
+    TextFrame:
+      type: object
+      required: [type, text]
+      properties:
+        type:
+          const: text
+        text:
+          type: string
+      additionalProperties: false
+
+    ControlFrame:
+      type: object
+      required: [type, action]
+      properties:
+        type:
+          const: control
+        action:
+          type: string
+          enum: [mute, unmute, barge_in, cancel]
+      additionalProperties: false
+
+    SessionEndFrame:
+      type: object
+      required: [type]
+      properties:
+        type:
+          const: session.end
+      additionalProperties: false
+
+    SessionReadyFrame:
+      type: object
+      required: [type, sessionId]
+      properties:
+        type:
+          const: session.ready
+        sessionId:
+          type: string
+          format: uuid
+        config:
+          type: object
+          properties:
+            sampleRate:
+              type: integer
+            codec:
+              $ref: '#/components/schemas/AudioCodec'
+      additionalProperties: false
+
+    TranscriptFrame:
+      type: object
+      required: [type, role, text, isFinal]
+      properties:
+        type:
+          const: transcript
+        role:
+          type: string
+          enum: [user, agent]
+        text:
+          type: string
+        isFinal:
+          type: boolean
+      additionalProperties: false
+
+    IntentFrame:
+      type: object
+      required: [type, intent, confidence]
+      properties:
+        type:
+          const: intent
+        intent:
+          type: string
+          enum: [carProblem, crash, medical, feelUnsafe, beingFollowed, lockedOut, roadside, outOfGas, document, none]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        slots:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+
+    EventFrame:
+      type: object
+      required: [type, name]
+      properties:
+        type:
+          const: event
+        name:
+          type: string
+          enum: [vad_start, vad_stop, barge_in, thinking]
+      additionalProperties: false
+
+    ErrorFrame:
+      type: object
+      required: [type, code, message]
+      properties:
+        type:
+          const: error
+        code:
+          type: string
+          examples: ['unauthorized', 'codec_unsupported', 'model_unavailable']
+        message:
+          type: string
+        fatal:
+          type: boolean
+          default: false
+      additionalProperties: false
+
+    SessionClosedFrame:
+      type: object
+      required: [type, reason]
+      properties:
+        type:
+          const: session.closed
+        reason:
+          type: string
+          enum: [client_request, timeout, completed, error]
+      additionalProperties: false
