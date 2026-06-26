@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sos_emergency/domain/models/emergency_enums.dart';
 import 'package:sos_emergency/domain/models/severity.dart';
+import 'package:sos_emergency/data/voice_session/voice_tts_player.dart';
 import 'package:sos_emergency/shared/backend_config.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -39,10 +40,12 @@ class VoiceErrorFrame extends VoiceFrame {
 }
 
 class VoiceSessionRepository {
-  VoiceSessionRepository({Uri? baseUri})
-    : _wsUri = _voiceWsUri(baseUri ?? BackendConfig.baseUri);
+  VoiceSessionRepository({Uri? baseUri, VoiceTtsPlayer? ttsPlayer})
+    : _wsUri = _voiceWsUri(baseUri ?? BackendConfig.baseUri),
+      _tts = ttsPlayer ?? VoiceTtsPlayer();
 
   final Uri _wsUri;
+  final VoiceTtsPlayer _tts;
   WebSocketChannel? _channel;
   final _frames = StreamController<VoiceFrame>.broadcast();
 
@@ -58,6 +61,8 @@ class VoiceSessionRepository {
 
   Future<void> connect({Severity tier = Severity.neutral}) async {
     await disconnect();
+    await _tts.ensureResumed();
+    _tts.reset();
     _channel = WebSocketChannel.connect(_wsUri);
     _channel!.stream.listen(
       (message) {
@@ -118,6 +123,13 @@ class VoiceSessionRepository {
         _frames.add(
           VoiceErrorFrame(json['message'] as String? ?? 'voice error'),
         );
+      case 'session.ready':
+        _tts.reset();
+      case 'audio.chunk':
+        final audio = json['audio'] as String?;
+        if (audio != null && audio.isNotEmpty) {
+          unawaited(_tts.playBase64Pcm16(audio));
+        }
       default:
         break;
     }

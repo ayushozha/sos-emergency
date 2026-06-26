@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sos_emergency/app/theme/sos_tokens.dart';
 import 'package:sos_emergency/application/orchestrator.dart';
-import 'package:sos_emergency/data/voice_session/voice_session_repository.dart';
+import 'package:sos_emergency/application/voice_session_controller.dart';
 import 'package:sos_emergency/dev/catalog_showcase.dart';
 import 'package:sos_emergency/dev/sos_screen_fixtures.dart';
 import 'package:sos_emergency/domain/models/emergency_enums.dart';
@@ -67,6 +67,7 @@ class _DebugBar extends ConsumerWidget {
     final scenario = ref.watch(demoScenarioProvider);
     final handoff = ref.watch(handoffScreenPickerProvider);
     final brightness = ref.watch(surfaceBrightnessControllerProvider);
+    final voiceStatus = ref.watch(voiceSessionControllerProvider);
     final isDay = brightness == SurfaceBrightness.day;
 
     return Padding(
@@ -153,16 +154,29 @@ class _DebugBar extends ConsumerWidget {
             ),
             label: Text(isDay ? 'Night' : 'Day'),
           ),
-          if (viewMode == SurfaceViewMode.live && BackendConfig.isConfigured)
+          if (viewMode == SurfaceViewMode.live && BackendConfig.useBackend) ...[
             FilledButton.tonalIcon(
               onPressed: () async {
-                final voice = ref.read(voiceSessionRepositoryProvider);
-                await voice.connect();
-                voice.sendText('I need emergency help');
+                await ref
+                    .read(voiceSessionControllerProvider.notifier)
+                    .connectAndSpeak('I need emergency help');
               },
-              icon: const Icon(Icons.mic_none),
-              label: const Text('Voice'),
+              icon: Icon(
+                voiceStatus.connected ? Icons.mic : Icons.mic_none,
+              ),
+              label: Text(voiceStatus.connected ? 'Voice on' : 'Voice'),
             ),
+            if (voiceStatus.lastTranscript.isNotEmpty)
+              Text(
+                '${voiceStatus.lastRole}: ${voiceStatus.lastTranscript}',
+                style: TextStyle(color: palette.textMuted, fontSize: 12),
+              ),
+            if (voiceStatus.error.isNotEmpty)
+              Text(
+                voiceStatus.error,
+                style: const TextStyle(color: Color(0xFFC63A33), fontSize: 12),
+              ),
+          ],
         ],
       ),
     );
