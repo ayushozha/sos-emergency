@@ -13,7 +13,7 @@ import '../support/node_finder.dart';
 
 const _config = VoiceSessionConfig(
   locale: 'en-US',
-  sampleRate: 16000,
+  sampleRate: 24000,
   codec: AudioCodec.opus,
 );
 

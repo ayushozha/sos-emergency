@@ -13,7 +13,7 @@ backend/
     voice_protocol.py  # PDF voice WebSocket handler
     config.py          # settings from env / .env
     featherless.py     # OpenAI-compatible streaming client
-    deepgram_agent.py  # Deepgram Voice Agent websocket wrapper
+    openai_realtime.py # OpenAI Realtime (gpt-realtime-2) websocket wrapper
     voice_prompt.py    # spoken persona + render function
   tests/
     test_api.py        # contract tests (no live API keys)
@@ -29,7 +29,7 @@ cd backend
 python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-cp .env.example .env        # FEATHERLESS_API_KEY + DEEPGRAM_API_KEY
+cp .env.example .env        # FEATHERLESS_API_KEY + OPENAI_API_KEY
 ```
 
 ## Run
@@ -106,7 +106,7 @@ Typed **JSON text frames** only (no legacy binary PCM on the wire). Client flow:
 Server frames: `transcript`, `audio.chunk` (TTS base64), `intent`, `compose` (A2UI surface),
 `event` (`vad_start`, `thinking`, …), `error`, `session.closed`.
 
-Requires `DEEPGRAM_API_KEY` and `FEATHERLESS_API_KEY`. See `VOICE_AGENT_SPEC.md` for design notes.
+Requires `OPENAI_API_KEY` (gpt-realtime-2) and `FEATHERLESS_API_KEY` (A2UI render on tool call).
 
 ### Test harness
 
@@ -125,7 +125,7 @@ cd backend
 pytest -q
 ```
 
-Contract tests use `TestClient` with app lifespan — no live Featherless/Deepgram keys required.
+Contract tests use `TestClient` with app lifespan — no live Featherless/OpenAI keys required.
 
 ## Flutter app integration
 

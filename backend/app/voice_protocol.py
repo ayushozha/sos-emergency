@@ -1,4 +1,4 @@
-"""PDF voice WebSocket frame protocol over Deepgram Voice Agent."""
+"""PDF voice WebSocket frame protocol over OpenAI Realtime (gpt-realtime-2)."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ from .api_models import (
 )
 from .compose_service import build_compose_prompt, parse_surface
 from .config import settings
-from .deepgram_agent import DeepgramAgentSession
+from .openai_realtime import OpenAIRealtimeSession
 from .featherless import stream_deltas
 from .schemas import ChatRequest, Message
 from .voice_prompt import RENDER_FUNCTION_NAME
@@ -108,11 +108,11 @@ async def handle_voice_session(
         async with send_lock:
             await ws.send_text(json.dumps(obj, separators=(",", ":")))
 
-    if not settings.deepgram_api_key or not settings.featherless_api_key:
+    if not settings.openai_api_key or not settings.featherless_api_key:
         await send_json(
             VoiceError(
                 code="unauthorized",
-                message="Voice backend keys are not configured.",
+                message="Voice backend keys are not configured (OPENAI_API_KEY + FEATHERLESS_API_KEY).",
                 fatal=True,
             ).model_dump(mode="json")
         )
@@ -121,7 +121,7 @@ async def handle_voice_session(
 
     session_id = uuid4()
     config: VoiceSessionConfig | None = None
-    session: DeepgramAgentSession | None = None
+    session: OpenAIRealtimeSession | None = None
     render_tasks: set[asyncio.Task[None]] = set()
     system_prompt = ""
 
@@ -267,7 +267,7 @@ async def handle_voice_session(
                 )
                 break
 
-        async with DeepgramAgentSession(on_event=on_agent_event) as opened:
+        async with OpenAIRealtimeSession(on_event=on_agent_event) as opened:
             session = opened
             while True:
                 frame = await ws.receive()

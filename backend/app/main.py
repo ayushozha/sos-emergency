@@ -64,7 +64,7 @@ def _uptime() -> float:
 
 
 def _voice_health_status() -> HealthStatus:
-    if not settings.deepgram_api_key or not settings.featherless_api_key:
+    if not settings.openai_api_key:
         return "down"
     if not settings.featherless_api_key:
         return "degraded"
@@ -76,7 +76,7 @@ async def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "model_key_configured": bool(settings.featherless_api_key),
-        "voice_key_configured": bool(settings.deepgram_api_key),
+        "voice_key_configured": bool(settings.openai_api_key),
     }
 
 
@@ -86,20 +86,20 @@ async def voice_health(
 ):
     status = _voice_health_status()
     model = ModelHealth(
-        id=settings.featherless_model,
-        ready=bool(settings.featherless_api_key),
+        id=settings.voice_realtime_model,
+        ready=bool(settings.openai_api_key),
     )
     dependencies: list[DependencyHealth] | None = None
     if verbose:
         dependencies = [
             DependencyHealth(
-                name="asr",
-                status="ok" if settings.deepgram_api_key else "down",
+                name="realtime",
+                status="ok" if settings.openai_api_key else "down",
                 latencyMs=41,
             ),
             DependencyHealth(
-                name="tts",
-                status="ok" if settings.deepgram_api_key else "down",
+                name="voice_model",
+                status="ok" if settings.openai_api_key else "down",
                 latencyMs=63,
             ),
             DependencyHealth(

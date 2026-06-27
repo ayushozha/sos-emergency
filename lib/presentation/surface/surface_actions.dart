@@ -10,7 +10,7 @@ import 'package:sos_emergency/domain/models/emergency_enums.dart';
 
 const _voiceConfig = VoiceSessionConfig(
   locale: 'en-US',
-  sampleRate: 16000,
+  sampleRate: 24000,
   codec: AudioCodec.opus,
 );
 

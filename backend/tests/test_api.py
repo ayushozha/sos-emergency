@@ -1,4 +1,4 @@
-"""API contract tests (no live Featherless/Deepgram keys required)."""
+"""API contract tests (no live Featherless/OpenAI keys required)."""
 
 import json
 from uuid import uuid4

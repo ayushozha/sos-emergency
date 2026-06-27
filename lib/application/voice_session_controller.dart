@@ -94,7 +94,7 @@ class VoiceSessionController extends _$VoiceSessionController {
     connect(
       VoiceSessionConfig(
         locale: 'en-US',
-        sampleRate: 16000,
+        sampleRate: 24000,
         codec: AudioCodec.pcm16,
         tier: tier,
       ),
