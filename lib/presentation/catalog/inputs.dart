@@ -317,6 +317,7 @@ Widget buildPushToTalk(BuildContext context, WidgetRef ref, A2uiNode node) {
   final transcript = ref.resolveString(node, 'transcript');
   // The live voice session drives the state; the prop is the fallback.
   final voiceStatus = ref.watch(voiceSessionControllerProvider).status;
+  final liveTranscript = ref.watch(voiceSessionControllerProvider).transcript;
   final listening =
       voiceStatus == VoiceSessionStatus.live ||
       voiceStatus == VoiceSessionStatus.connecting ||
@@ -354,7 +355,7 @@ Widget buildPushToTalk(BuildContext context, WidgetRef ref, A2uiNode node) {
         const SizedBox(height: SosTokens.space4),
         if (listening)
           Text(
-            transcript ?? 'Listening…',
+            liveTranscript ?? transcript ?? 'Listening…',
             textAlign: TextAlign.center,
             style: SosText.body(SosStatus.reached),
           )

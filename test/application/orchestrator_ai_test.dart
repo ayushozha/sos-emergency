@@ -1,6 +1,3 @@
-// Tests read several providers off one container, interleaved with awaits and
-// expects, where cascades don't compose cleanly.
-// ignore_for_file: cascade_invocations
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sos_emergency/application/ai_orchestration.dart';
@@ -36,6 +33,7 @@ void main() {
     test('a valid AI surface replaces the baseline after enrichment', () async {
       final transport = FakeAiTransport(surface: _aiSurface);
       final container = _container(transport);
+      container.read(aiEnabledProvider.notifier).enable();
       container.listen(surfaceControllerProvider, (_, _) {});
 
       container.read(demoScenarioProvider.notifier).select(ScenarioClass.crash);
@@ -56,6 +54,7 @@ void main() {
         error: const AiTransportException('boom', statusCode: 503),
       );
       final container = _container(transport);
+      container.read(aiEnabledProvider.notifier).enable();
       container.listen(surfaceControllerProvider, (_, _) {});
 
       container.read(demoScenarioProvider.notifier).select(ScenarioClass.crash);
@@ -72,6 +71,7 @@ void main() {
       () async {
         final transport = FakeAiTransport(surface: _aiSurface);
         final container = _container(transport);
+        container.read(aiEnabledProvider.notifier).enable();
         container.listen(surfaceControllerProvider, (_, _) {});
 
         // wont_start is an offline scenario.

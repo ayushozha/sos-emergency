@@ -38,6 +38,7 @@ from deepgram.types.think_settings_v1provider import ThinkSettingsV1Provider_Ope
 from .config import settings
 from .voice_prompt import (
     DISPATCHER_PROMPT,
+    call_emergency_function_definition,
     render_function_definition,
 )
 
@@ -83,7 +84,10 @@ def _build_settings(dispatcher_prompt: str) -> AgentV1Settings:
                 prompt=dispatcher_prompt,
                 # No endpoint URL on the function => Deepgram routes the call
                 # back to us as a FunctionCallRequest instead of calling out.
-                functions=[render_function_definition()],
+                functions=[
+                    render_function_definition(),
+                    call_emergency_function_definition(),
+                ],
             ),
             speak=SpeakSettingsV1(
                 provider=SpeakSettingsV1Provider_Deepgram(

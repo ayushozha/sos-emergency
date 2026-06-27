@@ -33,6 +33,10 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Golden test failure artifacts (regenerated on every failing run).
+# Keep the reference images in test/golden/goldens/ tracked.
+test/**/failures/
+
 # Symbolication related
 app.*.symbols
 

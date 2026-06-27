@@ -27,7 +27,7 @@ from .config import settings
 from .deepgram_agent import DeepgramAgentSession
 from .featherless import stream_deltas
 from .schemas import ChatRequest, Message
-from .voice_prompt import RENDER_FUNCTION_NAME
+from .voice_prompt import CALL_EMERGENCY_FUNCTION_NAME, RENDER_FUNCTION_NAME
 
 logger = logging.getLogger("sos.voice")
 
@@ -142,6 +142,7 @@ async def chat_stream(req: ChatRequest, request: Request):
 #   {"done": true}               the current render's A2UI stream finished
 #   {"transcript": {"role","content"}}   a spoken turn (user or assistant)
 #   {"event": "AgentThinking"}   lightweight status passthrough
+#   {"action": "call_emergency"} user asked to call 911 — dial on device
 #   {"error": "..."}             a terminal/recoverable error
 # --------------------------------------------------------------------------- #
 
@@ -258,6 +259,15 @@ async def voice_agent(ws: WebSocket) -> None:
                     task = asyncio.create_task(render_ui(call))
                     render_tasks.add(task)
                     task.add_done_callback(render_tasks.discard)
+                elif call.name == CALL_EMERGENCY_FUNCTION_NAME:
+                    await send_json({"action": "call_emergency"})
+                    if session is not None:
+                        with contextlib.suppress(Exception):
+                            await session.send_function_call_response(
+                                call_id=call.id,
+                                name=call.name,
+                                content='{"status":"dialing"}',
+                            )
         elif msg_type == "ConversationText":
             await send_json(
                 {"transcript": {

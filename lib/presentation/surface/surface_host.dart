@@ -7,6 +7,7 @@ import 'package:sos_emergency/domain/models/surface_brightness.dart';
 import 'package:sos_emergency/presentation/surface/a2ui_renderer.dart';
 import 'package:sos_emergency/presentation/surface/surface_actions.dart';
 import 'package:sos_emergency/presentation/surface/surface_theme_providers.dart';
+import 'package:sos_emergency/presentation/surface/voice_render_overlay.dart';
 
 /// Hosts the renderer: paints the themed ground and renders the Surface the
 /// orchestrator composes for the current scenario. A slim top bar offers a
@@ -22,20 +23,25 @@ class SurfaceHost extends ConsumerWidget {
     return ColoredBox(
       color: palette.ground,
       child: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            const _TopBar(),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  SosTokens.space12,
-                  SosTokens.space4,
-                  SosTokens.space12,
-                  SosTokens.space12,
+            Column(
+              children: [
+                const _TopBar(),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      SosTokens.space12,
+                      SosTokens.space4,
+                      SosTokens.space12,
+                      SosTokens.space12,
+                    ),
+                    child: A2uiRenderer(node: surface.root),
+                  ),
                 ),
-                child: A2uiRenderer(node: surface.root),
-              ),
+              ],
             ),
+            const VoiceRenderOverlay(),
           ],
         ),
       ),

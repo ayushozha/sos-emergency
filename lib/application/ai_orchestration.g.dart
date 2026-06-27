@@ -184,17 +184,32 @@ final class SafetySupervisorProvider
 
 String _$safetySupervisorHash() => r'f824d3ca3c7de723dfeca3d4fbb0cedda4669088';
 
-/// Master switch for AI enrichment. When off, the app runs the deterministic
-/// baseline only (the Phase 2 product).
+/// Master switch for the legacy bespoke AI enrichment path (the non-streaming
+/// [HttpAiTransport] → [composeEndpoint]). Off by default: that endpoint is a
+/// placeholder and the path predates the genui/backend transport, so leaving it
+/// on makes every compose hit a dead host. The deterministic baseline (the
+/// Phase 2 product) renders every scenario without it; voice-triggered GenUI
+/// renders go through the separate genui transport. Re-enable once the composer
+/// is re-targeted to the genui pipeline (Phase 5).
 
 @ProviderFor(AiEnabled)
 final aiEnabledProvider = AiEnabledProvider._();
 
-/// Master switch for AI enrichment. When off, the app runs the deterministic
-/// baseline only (the Phase 2 product).
+/// Master switch for the legacy bespoke AI enrichment path (the non-streaming
+/// [HttpAiTransport] → [composeEndpoint]). Off by default: that endpoint is a
+/// placeholder and the path predates the genui/backend transport, so leaving it
+/// on makes every compose hit a dead host. The deterministic baseline (the
+/// Phase 2 product) renders every scenario without it; voice-triggered GenUI
+/// renders go through the separate genui transport. Re-enable once the composer
+/// is re-targeted to the genui pipeline (Phase 5).
 final class AiEnabledProvider extends $NotifierProvider<AiEnabled, bool> {
-  /// Master switch for AI enrichment. When off, the app runs the deterministic
-  /// baseline only (the Phase 2 product).
+  /// Master switch for the legacy bespoke AI enrichment path (the non-streaming
+  /// [HttpAiTransport] → [composeEndpoint]). Off by default: that endpoint is a
+  /// placeholder and the path predates the genui/backend transport, so leaving it
+  /// on makes every compose hit a dead host. The deterministic baseline (the
+  /// Phase 2 product) renders every scenario without it; voice-triggered GenUI
+  /// renders go through the separate genui transport. Re-enable once the composer
+  /// is re-targeted to the genui pipeline (Phase 5).
   AiEnabledProvider._()
     : super(
         from: null,
@@ -222,10 +237,15 @@ final class AiEnabledProvider extends $NotifierProvider<AiEnabled, bool> {
   }
 }
 
-String _$aiEnabledHash() => r'5af7ba0096cfffd228a1727da4c98f6d229aa829';
+String _$aiEnabledHash() => r'a944b628df4384d77801b4983dcc85ce172ec67a';
 
-/// Master switch for AI enrichment. When off, the app runs the deterministic
-/// baseline only (the Phase 2 product).
+/// Master switch for the legacy bespoke AI enrichment path (the non-streaming
+/// [HttpAiTransport] → [composeEndpoint]). Off by default: that endpoint is a
+/// placeholder and the path predates the genui/backend transport, so leaving it
+/// on makes every compose hit a dead host. The deterministic baseline (the
+/// Phase 2 product) renders every scenario without it; voice-triggered GenUI
+/// renders go through the separate genui transport. Re-enable once the composer
+/// is re-targeted to the genui pipeline (Phase 5).
 
 abstract class _$AiEnabled extends $Notifier<bool> {
   bool build();

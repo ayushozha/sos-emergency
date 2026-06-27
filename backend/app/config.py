@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # Featherless exposes an OpenAI-compatible API.
     featherless_base_url: str = "https://api.featherless.ai/v1"
 
-    # Default model. Strong instruction-following for A2UI's structured output.
+    # Default model. Fast instruction-following for A2UI's structured output.
     # Override per-request from the client, or globally via FEATHERLESS_MODEL.
     featherless_model: str = "Qwen/Qwen2.5-72B-Instruct"
 

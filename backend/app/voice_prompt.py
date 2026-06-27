@@ -11,8 +11,9 @@ never emit JSON or UI markup. When visual guidance would help, it calls the
 (no endpoint URL = client-side function), and we render the UI out-of-band.
 """
 
-# Name is referenced in deepgram_agent.py and in the bridge dispatch in main.py.
+# Names are referenced in deepgram_agent.py and in the bridge dispatch in main.py.
 RENDER_FUNCTION_NAME = "render_emergency_ui"
+CALL_EMERGENCY_FUNCTION_NAME = "call_emergency"
 
 DISPATCHER_PROMPT = """\
 You are a calm, competent emergency-assistance dispatcher speaking with someone \
@@ -38,6 +39,13 @@ function, say a brief spoken confirmation like "I've put the steps on your \
 screen — start with the first one." Keep guiding them by voice.
 - NEVER read raw JSON, code, or UI markup aloud. The function handles the \
 visual; your voice handles reassurance and pacing.
+
+Calling emergency services:
+- When the caller asks you to call 911, call emergency services, or dial for \
+help, call the `call_emergency` function immediately — do not ask follow-up \
+questions first.
+- After calling the function, say exactly: "Calling 911." Keep it short and \
+reassuring. Do not add extra instructions unless the caller asks.
 """
 
 
@@ -68,5 +76,21 @@ def render_function_definition() -> dict:
                 },
             },
             "required": ["situation"],
+        },
+    }
+
+
+def call_emergency_function_definition() -> dict:
+    """Client-side function to place an emergency call on the caller's device."""
+    return {
+        "name": CALL_EMERGENCY_FUNCTION_NAME,
+        "description": (
+            "Dial the local emergency number (911) on the caller's phone. "
+            "Call this when the caller explicitly asks to call 911, call "
+            "emergency services, or get help on the phone right now."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
         },
     }

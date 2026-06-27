@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sos_emergency/application/ai_orchestration.dart';
 import 'package:sos_emergency/application/orchestrator.dart';
+import 'package:sos_emergency/application/voice_agent_providers.dart';
 import 'package:sos_emergency/application/voice_session_controller.dart';
 import 'package:sos_emergency/data/api/api_enums.dart';
 import 'package:sos_emergency/data/voice_session/fake_voice_session.dart';
@@ -28,7 +29,7 @@ void main() {
         );
         addTearDown(c.dispose);
 
-        c.read(voiceSessionControllerProvider.notifier).connect(_config);
+        await c.read(voiceSessionControllerProvider.notifier).connect(_config);
         await pumpEventQueue();
         expect(
           c.read(voiceSessionControllerProvider).status,
@@ -58,7 +59,7 @@ void main() {
       c.read(aiEnabledProvider.notifier).disable();
 
       // Drive a fatal voice error.
-      c.read(voiceSessionControllerProvider.notifier).connect(_config);
+      await c.read(voiceSessionControllerProvider.notifier).connect(_config);
       await pumpEventQueue();
       fake.emit(
         const VoiceServerFrame.error(

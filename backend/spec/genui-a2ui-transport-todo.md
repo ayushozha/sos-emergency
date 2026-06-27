@@ -6,9 +6,10 @@ Tracks building the genui-SDK migration from `genui-a2ui-transport-spec.md`
 > **Status (as of this pass):** Phases 0–4 + 7-seam done, **and the live model
 > round-trip is verified.** Backend `catalogVersion` passthrough; genui catalog
 > with 22 leaf components (real `S.object` schemas, reusing existing widgets via
-> a bridge); transport wired to `/v1/chat/stream`; demo screen
-> `EmergencyGenUiScreen`; voice seam (`EmergencySession.ingestVoiceDelta` +
-> `systemPrompt`). `flutter analyze` clean; `flutter test` green (3 genui tests):
+> a bridge); transport wired to `/v1/chat/stream`; voice seam
+> (`EmergencySession.ingestVoiceDelta` + `systemPrompt`). App home is
+> `SurfaceHost` (dashboard); the chat-style GenUI demo screen was removed.
+> `flutter analyze` clean; `flutter test` green (2 genui tests):
 > - `emergency_catalog_render_test.dart` — renders from canned A2UI messages.
 > - `live_output_parse_test.dart` — renders from **real GLM-5.2 output** (prose +
 >   ```json fences), proving the parser recovers a surface from messy model text.

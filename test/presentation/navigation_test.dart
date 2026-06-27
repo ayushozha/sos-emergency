@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sos_emergency/application/ai_orchestration.dart';
+import 'package:sos_emergency/application/voice_agent_providers.dart';
+import 'package:sos_emergency/data/voice_session/fake_voice_session.dart';
 import 'package:sos_emergency/presentation/surface/surface_host.dart';
 
 import '../golden/golden_harness.dart';
@@ -62,7 +64,10 @@ void main() {
   });
 
   testWidgets('tap to speak starts the voice session', (tester) async {
-    final container = ProviderContainer();
+    final fake = FakeVoiceSession();
+    final container = ProviderContainer(
+      overrides: [voiceSessionProvider.overrideWithValue(fake)],
+    );
     addTearDown(container.dispose);
     container.read(aiEnabledProvider.notifier).disable();
 

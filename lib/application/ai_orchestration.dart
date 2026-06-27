@@ -31,12 +31,17 @@ AiComposer aiComposer(Ref ref) => AiComposer(ref.watch(aiTransportProvider));
 @Riverpod(keepAlive: true)
 SafetySupervisor safetySupervisor(Ref ref) => const SafetySupervisor();
 
-/// Master switch for AI enrichment. When off, the app runs the deterministic
-/// baseline only (the Phase 2 product).
+/// Master switch for the legacy bespoke AI enrichment path (the non-streaming
+/// [HttpAiTransport] → [composeEndpoint]). Off by default: that endpoint is a
+/// placeholder and the path predates the genui/backend transport, so leaving it
+/// on makes every compose hit a dead host. The deterministic baseline (the
+/// Phase 2 product) renders every scenario without it; voice-triggered GenUI
+/// renders go through the separate genui transport. Re-enable once the composer
+/// is re-targeted to the genui pipeline (Phase 5).
 @Riverpod(keepAlive: true)
 class AiEnabled extends _$AiEnabled {
   @override
-  bool build() => true;
+  bool build() => false;
 
   void enable() => state = true;
   void disable() => state = false;

@@ -100,7 +100,7 @@ Opening triage presents a low-friction choice grid: car problem, crash, medical,
 | Widget catalog & A2UI renderer | **Implemented** | Emergency components in `lib/presentation/catalog/` |
 | Design tokens (day/night, severity tiers) | **Implemented** | `lib/app/theme/sos_tokens.dart`, [design doc](docs/design/sos_design_system.md) |
 | Golden screen fixtures | **Implemented** | Opening triage, crash, being followed, medical, won't-start |
-| GenUI session + Featherless client | **Implemented** | Direct Featherless streaming from Flutter |
+| GenUI session + backend transport | **Implemented** | `lib/genui/` (catalog + conversation) |
 | FastAPI backend proxy | **Implemented** | Chat stream + voice agent; keys server-side |
 | Deepgram voice agent + A2UI bridge | **Implemented** | `render_emergency_ui` → Featherless pipeline |
 | Browser voice/chat harness | **Implemented** | `backend/voice_test.html` |
@@ -150,9 +150,11 @@ See [backend/README.md](backend/README.md) and [backend/VOICE_AGENT_SPEC.md](bac
 │   ├── presentation/
 │   │   ├── catalog/            # Emergency widget catalog (the AI vocabulary)
 │   │   └── surface/            # Surface host, A2UI renderer, DataModel
-│   ├── model/                  # ModelClient + Featherless implementation
-│   ├── home_page.dart          # Demo GenUI session screen
-│   └── conversation.dart       # GenUiSession pipeline
+│   ├── genui/                  # GenUI SDK catalog + backend transport
+│   │   ├── emergency_catalog.dart
+│   │   └── emergency_conversation.dart
+│   ├── app/sos_app.dart        # MaterialApp root → SurfaceHost dashboard
+│   └── main.dart
 ├── backend/
 │   ├── app/                    # FastAPI: chat stream, voice agent, config
 │   ├── voice_test.html         # Browser harness for chat + voice
@@ -231,8 +233,7 @@ Serve `voice_test.html` while the FastAPI server runs on port 8000. The harness 
 
 | Define | Default | Purpose |
 |--------|---------|---------|
-| `FEATHERLESS_API_KEY` | _(empty)_ | Direct Featherless access from `FeatherlessModelClient` |
-| Model override | `Qwen/Qwen2.5-72B-Instruct` | Constructor / client default |
+| `BACKEND_BASE` | `http://localhost:8000` | FastAPI proxy for GenUI transport (when wired) |
 
 ### Backend environment (`.env`)
 
