@@ -13,13 +13,13 @@
   fieldset { border: 1px solid #8884; border-radius: 8px; margin: 0 0 1rem; padding: 1rem; }
   legend { font-weight: 600; padding: 0 .4rem; }
   label { display: block; font-size: 12px; opacity: .8; margin: .6rem 0 .2rem; }
-  input, textarea, button { font: inherit; width: 100%; box-sizing: border-box;
+  input, textarea, select, button { font: inherit; width: 100%; box-sizing: border-box;
     padding: .5rem; border-radius: 6px; border: 1px solid #8886; background: transparent; color: inherit; }
   textarea { resize: vertical; }
   button { cursor: pointer; width: auto; padding: .5rem 1rem; }
   button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
   button:disabled { opacity: .5; cursor: not-allowed; }
-  .btns { display: flex; gap: .5rem; margin-top: .6rem; }
+  .btns { display: flex; gap: .5rem; margin-top: .6rem; flex-wrap: wrap; }
   pre { background: #8881; border-radius: 6px; padding: .6rem; max-height: 280px; overflow: auto;
     white-space: pre-wrap; word-break: break-word; margin: .3rem 0 0; }
   .status { font-weight: 600; }
@@ -35,40 +35,67 @@
 <input id="baseUrl" value="http://127.0.0.1:8000" style="max-width:380px" />
 
 <div class="row" style="margin-top:1rem">
-  <!-- ----------------------------------------------------------------- -->
   <div class="col">
     <fieldset>
-      <legend>Voice agent — WS /v1/voice/agent</legend>
-      <label>System prompt (A2UI render prompt, sent on connect)</label>
-      <textarea id="vSystem" rows="3">You are an emergency-guidance assistant. Reply ONLY with a compact JSON object describing UI to render (no prose, no markdown fences). Use keys like {"title": ..., "steps": [...]}.</textarea>
-      <label>Model override (blank = server default)</label>
-      <input id="vModel" placeholder="(server default)" />
+      <legend>Voice agent — WS /v1/voice/agent (PDF frames)</legend>
+      <label>Locale</label>
+      <input id="vLocale" value="en-US" />
+      <label>Severity tier (optional)</label>
+      <select id="vTier">
+        <option value="">(none)</option>
+        <option value="neutral">neutral</option>
+        <option value="moderate">moderate</option>
+        <option value="high">high</option>
+        <option value="critical">critical</option>
+      </select>
       <div class="btns">
         <button id="connectBtn" class="primary">Connect &amp; talk</button>
         <button id="disconnectBtn" disabled>Disconnect</button>
+        <button id="sendTextBtn" disabled>Send typed text</button>
       </div>
+      <label>Typed utterance (sends <code>text</code> frame)</label>
+      <input id="vText" value="I was in a crash, need help" />
       <p class="status" style="margin-top:.8rem"><span id="dot" class="dot off"></span><span id="status">not connected</span></p>
-      <p class="muted">Continuous mic → 16 kHz linear16 binary frames. TTS (24 kHz) plays back gapless.</p>
+      <p class="muted">Mic → 16 kHz PCM16 as base64 <code>audio.chunk</code> JSON frames. TTS returns <code>audio.chunk</code> (base64 @ 24 kHz).</p>
 
       <label>Transcript / events</label>
       <pre id="vLog"></pre>
-      <label>Rendered A2UI</label>
+      <label>Composed surface</label>
       <pre id="vA2ui"></pre>
     </fieldset>
   </div>
 
-  <!-- ----------------------------------------------------------------- -->
   <div class="col">
     <fieldset>
-      <legend>Text / A2UI — POST /v1/chat/stream</legend>
-      <label>System prompt</label>
-      <textarea id="tSystem" rows="3">You are an emergency-guidance assistant. Reply ONLY with a compact JSON object describing UI to render (no prose, no markdown fences). Use keys like {"title": ..., "steps": [...]}.</textarea>
-      <label>Model override (blank = server default)</label>
-      <input id="tModel" placeholder="(server default)" />
-      <label>Message</label>
-      <input id="tMsg" value="My kitchen is on fire, what do I do?" />
-      <div class="btns"><button id="sendBtn" class="primary">Send</button></div>
-      <label>Raw A2UI (accumulated deltas)</label>
+      <legend>Compose — POST /v1/chat/stream (PDF contract)</legend>
+      <label>Scenario</label>
+      <select id="cScenario">
+        <option value="unknown">unknown (opening triage)</option>
+        <option value="crash">crash</option>
+        <option value="medical">medical</option>
+        <option value="beingFollowed">beingFollowed</option>
+        <option value="flatTire">flatTire</option>
+        <option value="wontStart">wontStart</option>
+      </select>
+      <label>Severity</label>
+      <select id="cSeverity">
+        <option value="neutral">neutral</option>
+        <option value="moderate">moderate</option>
+        <option value="high">high</option>
+        <option value="critical">critical</option>
+      </select>
+      <label>Mode</label>
+      <select id="cMode">
+        <option value="triage">triage</option>
+        <option value="crash">crash</option>
+        <option value="medical">medical</option>
+        <option value="threat">threat</option>
+        <option value="roadside">roadside</option>
+      </select>
+      <label class="muted"><input type="checkbox" id="cNight" /> Night mode</label>
+      <label class="muted"><input type="checkbox" id="cStream" checked /> SSE stream (stream=true)</label>
+      <div class="btns"><button id="sendBtn" class="primary">Compose</button></div>
+      <label>Surface JSON</label>
       <pre id="tA2ui"></pre>
       <label>Stream log</label>
       <pre id="tLog"></pre>
@@ -81,51 +108,85 @@ const $ = (id) => document.getElementById(id);
 const baseUrl = () => $("baseUrl").value.replace(/\/+$/, "");
 const wsUrl = () => baseUrl().replace(/^http/, "ws") + "/v1/voice/agent";
 
-// Backend audio contract (mirrors app/config.py).
-const MIC_RATE = 16000;   // send UP
-const TTS_RATE = 24000;   // receive DOWN
+const MIC_RATE = 16000;
+const TTS_RATE = 24000;
 
-// ------------------------------------------------------------------ //
-// Text / A2UI path
-// ------------------------------------------------------------------ //
+function composePayload() {
+  const scenario = $("cScenario").value;
+  const mode = $("cMode").value;
+  return {
+    classification: {
+      scenario,
+      severity: $("cSeverity").value,
+      mode,
+      confidence: 0.95,
+      hazards: [],
+    },
+    context: {
+      carState: "parked",
+      connectivity: "online",
+      isNight: $("cNight").checked,
+      locale: "en-US",
+      emergencyNumber: "911",
+    },
+    catalogVersion: "2026.06.0",
+    stream: $("cStream").checked,
+    timeBudgetMs: 3000,
+  };
+}
+
 $("sendBtn").onclick = async () => {
   $("tA2ui").textContent = "";
   $("tLog").textContent = "";
-  const body = { system: $("tSystem").value, messages: [{ role: "user", text: $("tMsg").value }] };
-  if ($("tModel").value.trim()) body.model = $("tModel").value.trim();
+  const body = composePayload();
 
   let resp;
   try {
     resp = await fetch(baseUrl() + "/v1/chat/stream", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
   } catch (e) { $("tLog").textContent = "Request failed: " + e; return; }
   if (!resp.ok) { $("tLog").textContent = "HTTP " + resp.status + ": " + (await resp.text()); return; }
 
+  if (!body.stream) {
+    const json = await resp.json();
+    $("tA2ui").textContent = JSON.stringify(json.surface, null, 2);
+    $("tLog").textContent = "finishReason: " + json.finishReason;
+    return;
+  }
+
   const reader = resp.body.getReader();
   const dec = new TextDecoder();
-  let buf = "", acc = "";
+  let buf = "", nodes = [];
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     buf += dec.decode(value, { stream: true });
-    let nl;
-    while ((nl = buf.indexOf("\n")) >= 0) {
-      const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
-      if (!line) continue;
-      let obj; try { obj = JSON.parse(line); } catch { $("tLog").textContent += "[unparsed] " + line + "\n"; continue; }
-      if (obj.delta != null) { acc += obj.delta; $("tA2ui").textContent = acc; }
-      else if (obj.done) $("tLog").textContent += "✓ done\n";
-      else if (obj.error) $("tLog").textContent += "✗ error: " + obj.error + "\n";
+    const parts = buf.split("\n\n");
+    buf = parts.pop() || "";
+    for (const block of parts) {
+      for (const line of block.split("\n")) {
+        if (!line.startsWith("data: ")) continue;
+        let obj;
+        try { obj = JSON.parse(line.slice(6)); } catch { $("tLog").textContent += "[unparsed] " + line + "\n"; continue; }
+        if (obj.type === "node") {
+          nodes.push(obj.node);
+          $("tLog").textContent += "node: " + obj.node.type + (obj.parentId ? " (parent " + obj.parentId + ")" : "") + "\n";
+        } else if (obj.type === "done") {
+          $("tLog").textContent += "done: " + obj.finishReason + "\n";
+        } else if (obj.type === "error") {
+          $("tLog").textContent += "error: " + obj.code + " — " + obj.message + "\n";
+        }
+      }
     }
   }
+  if (nodes.length) $("tA2ui").textContent = JSON.stringify(nodes[0], null, 2);
 };
 
-// ------------------------------------------------------------------ //
-// Voice path
-// ------------------------------------------------------------------ //
 let ws = null, micCtx = null, micStream = null, micNode = null, micSource = null;
-let outCtx = null, playhead = 0;
+let outCtx = null, playhead = 0, audioInSeq = 0, sessionReady = false;
 
 function log(line) { $("vLog").textContent += line + "\n"; $("vLog").scrollTop = $("vLog").scrollHeight; }
 function setStatus(txt, cls) { $("status").textContent = txt; $("dot").className = "dot " + cls; }
@@ -151,66 +212,117 @@ function playPCM(int16) {
   const src = outCtx.createBufferSource();
   src.buffer = buf; src.connect(outCtx.destination);
   const now = outCtx.currentTime;
-  if (playhead < now) playhead = now + 0.04;   // small lead-in to avoid underrun
+  if (playhead < now) playhead = now + 0.04;
   src.start(playhead);
   playhead += buf.duration;
 }
 
-function handleDown(data) {
-  if (data instanceof ArrayBuffer) {
-    let bytes = new Uint8Array(data);
-    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) bytes = bytes.subarray(44); // RIFF
-    const n = bytes.byteLength & ~1; // even
-    playPCM(new Int16Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + n)));
-    return;
+function b64ToInt16(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const n = bytes.byteLength & ~1;
+  return new Int16Array(bytes.buffer.slice(0, n));
+}
+
+function int16ToB64(i16) {
+  const bytes = new Uint8Array(i16.buffer, i16.byteOffset, i16.byteLength);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+function handleVoiceFrame(obj) {
+  switch (obj.type) {
+    case "session.ready":
+      sessionReady = true;
+      log("session.ready id=" + obj.sessionId);
+      setStatus("ready — speak now", "on");
+      break;
+    case "transcript":
+      log((obj.isFinal ? "💬" : "…") + " " + obj.role + ": " + obj.text);
+      break;
+    case "audio.chunk":
+      playPCM(b64ToInt16(obj.audio));
+      break;
+    case "intent":
+      log("intent: " + obj.intent + " (" + obj.confidence + ")");
+      break;
+    case "compose":
+      $("vA2ui").textContent = JSON.stringify(obj.surface, null, 2);
+      log("compose: " + (obj.surface && obj.surface.type));
+      break;
+    case "event":
+      log("· " + obj.name);
+      break;
+    case "error":
+      log("✗ " + obj.code + ": " + obj.message + (obj.fatal ? " (fatal)" : ""));
+      if (obj.fatal) setStatus("error", "err");
+      break;
+    case "session.closed":
+      log("session.closed: " + obj.reason);
+      break;
+    default:
+      log("? " + JSON.stringify(obj));
   }
-  let obj; try { obj = JSON.parse(data); } catch { log("[unparsed] " + data); return; }
-  if (obj.delta != null) { $("vA2ui").textContent += obj.delta; }
-  else if (obj.render_start) { $("vA2ui").textContent = ""; log("▶ render_start: " + JSON.stringify(obj.render_start)); }
-  else if (obj.done) log("✓ render done");
-  else if (obj.transcript) log("💬 " + obj.transcript.role + ": " + obj.transcript.content);
-  else if (obj.event) log("· " + obj.event);
-  else if (obj.error) log("✗ " + obj.error);
-  else log("? " + data);
+}
+
+function sendSessionStart() {
+  const tier = $("vTier").value;
+  const config = {
+    locale: $("vLocale").value.trim() || "en-US",
+    sampleRate: MIC_RATE,
+    codec: "pcm16",
+  };
+  if (tier) config.tier = tier;
+  ws.send(JSON.stringify({ type: "session.start", config }));
+  log("→ session.start");
 }
 
 async function connect() {
   $("vLog").textContent = ""; $("vA2ui").textContent = "";
+  sessionReady = false; audioInSeq = 0;
   setStatus("connecting…", "off");
   try {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
   } catch (e) { setStatus("mic permission denied", "err"); log("✗ getUserMedia: " + e); return; }
 
   ws = new WebSocket(wsUrl());
-  ws.binaryType = "arraybuffer";
-  ws.onmessage = (ev) => handleDown(ev.data);
-  ws.onclose = () => { setStatus("disconnected", "off"); cleanupMic(); toggle(false); };
+  ws.onmessage = (ev) => {
+    let obj; try { obj = JSON.parse(ev.data); } catch { log("[unparsed] " + ev.data); return; }
+    handleVoiceFrame(obj);
+  };
+  ws.onclose = () => { setStatus("disconnected", "off"); cleanupMic(); toggle(false); sessionReady = false; };
   ws.onerror = () => { setStatus("websocket error", "err"); };
   ws.onopen = () => {
-    const cfg = { system: $("vSystem").value, model: $("vModel").value.trim() || null };
-    ws.send(JSON.stringify(cfg));
-    log("→ connected, sent config (model=" + (cfg.model || "default") + ")");
-    setStatus("connected — speak now", "on");
+    sendSessionStart();
+    outCtx = new (window.AudioContext || window.webkitAudioContext)();
+    playhead = 0;
     startMic();
     toggle(true);
   };
 }
 
 function startMic() {
-  outCtx = new (window.AudioContext || window.webkitAudioContext)();
-  playhead = 0;
   micCtx = new (window.AudioContext || window.webkitAudioContext)();
   micSource = micCtx.createMediaStreamSource(micStream);
-  micNode = micCtx.createScriptProcessor(4096, 1, 1); // deprecated but fine for a dev harness
+  micNode = micCtx.createScriptProcessor(4096, 1, 1);
   micNode.onaudioprocess = (e) => {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN || !sessionReady) return;
     const ds = downsample(e.inputBuffer.getChannelData(0), micCtx.sampleRate, MIC_RATE);
     const i16 = new Int16Array(ds.length);
-    for (let i = 0; i < ds.length; i++) { const s = Math.max(-1, Math.min(1, ds[i])); i16[i] = s * 0x7fff; }
-    ws.send(i16.buffer);
+    for (let i = 0; i < ds.length; i++) {
+      const s = Math.max(-1, Math.min(1, ds[i]));
+      i16[i] = s * 0x7fff;
+    }
+    ws.send(JSON.stringify({
+      type: "audio.chunk",
+      seq: audioInSeq++,
+      audio: int16ToB64(i16),
+    }));
   };
   micSource.connect(micNode);
-  micNode.connect(micCtx.destination); // required for onaudioprocess to fire in some browsers
+  micNode.connect(micCtx.destination);
 }
 
 function cleanupMic() {
@@ -222,11 +334,29 @@ function cleanupMic() {
   micNode = micSource = micStream = micCtx = outCtx = null;
 }
 
-function disconnect() { try { ws && ws.close(); } catch {} cleanupMic(); }
-function toggle(connected) { $("connectBtn").disabled = connected; $("disconnectBtn").disabled = !connected; }
+function disconnect() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    try { ws.send(JSON.stringify({ type: "session.end" })); } catch {}
+  }
+  try { ws && ws.close(); } catch {}
+  cleanupMic();
+}
+
+function toggle(connected) {
+  $("connectBtn").disabled = connected;
+  $("disconnectBtn").disabled = !connected;
+  $("sendTextBtn").disabled = !connected;
+}
 
 $("connectBtn").onclick = connect;
 $("disconnectBtn").onclick = disconnect;
+$("sendTextBtn").onclick = () => {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  const text = $("vText").value.trim();
+  if (!text) return;
+  ws.send(JSON.stringify({ type: "text", text }));
+  log("→ text: " + text);
+};
 </script>
 </body>
 </html>

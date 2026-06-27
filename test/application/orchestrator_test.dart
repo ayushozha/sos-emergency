@@ -54,13 +54,19 @@ void main() {
           .read(demoScenarioProvider.notifier)
           .select(ScenarioClass.flatTire);
       await container.read(emergencyContextProvider.future);
-      expect(container.read(surfaceControllerProvider).mode, AppMode.roadside);
+      expect(
+        container.read(surfaceControllerProvider).mode,
+        AppMode.roadside,
+      );
 
       container
           .read(demoScenarioProvider.notifier)
           .select(ScenarioClass.beingFollowed);
       await container.read(emergencyContextProvider.future);
-      expect(container.read(surfaceControllerProvider).mode, AppMode.threat);
+      expect(
+        container.read(surfaceControllerProvider).mode,
+        AppMode.threat,
+      );
     });
   });
 }

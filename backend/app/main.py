@@ -1,49 +1,53 @@
-"""FastAPI app: a thin streaming proxy in front of the model provider.
+"""FastAPI app: SOS Emergency GenUI backend (PDF API contract)."""
 
-The Flutter client POSTs its system prompt + history here and receives the raw
-A2UI text deltas as NDJSON (one JSON object per line). NDJSON is used instead of
-plain text so arbitrary content — including newlines inside the A2UI JSON — is
-preserved exactly:
+from __future__ import annotations
 
-    {"delta": "..."}      # zero or more, in order
-    {"done": true}        # terminal success marker
-    {"error": "..."}      # terminal error marker (mid-stream failures)
-"""
-
-import asyncio
-import contextlib
 import json
-import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from .api_models import (
+    DependencyHealth,
+    HealthStatus,
+    ModelHealth,
+    VoiceHealthResponse,
+    utc_now,
+)
+from .api_models import ComposeRequest as ApiComposeRequest
+from .compose_service import (
+    compose_response,
+    compose_surface,
+    stream_compose_events,
+)
 from .config import settings
-from .deepgram_agent import DeepgramAgentSession
-from .featherless import stream_deltas
 from .schemas import ChatRequest, Message
-from .voice_prompt import RENDER_FUNCTION_NAME
-
-logger = logging.getLogger("sos.voice")
+from .featherless import stream_deltas
+from .voice_protocol import handle_voice_session
 
 HTTP_TIMEOUT = httpx.Timeout(connect=10.0, read=300.0, write=10.0, pool=10.0)
+_APP_VERSION = "1.0.0"
+_started_at = time.monotonic()
+_active_voice_sessions = 0
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.http_client = httpx.AsyncClient(timeout=HTTP_TIMEOUT)
+    app.state.started_at = _started_at
     yield
     await app.state.http_client.aclose()
 
 
 app = FastAPI(
     title="SOS Emergency — GenUI Backend",
-    version="0.1.0",
+    version=_APP_VERSION,
     lifespan=lifespan,
 )
 
@@ -55,70 +59,120 @@ app.add_middleware(
 )
 
 
+def _uptime() -> float:
+    return time.monotonic() - _started_at
+
+
+def _voice_health_status() -> HealthStatus:
+    if not settings.openai_api_key:
+        return "down"
+    if not settings.featherless_api_key:
+        return "degraded"
+    return "ok"
+
+
 @app.get("/health")
-async def health() -> dict:
-    """Liveness check; also reports whether provider API keys are configured."""
+async def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "model_key_configured": bool(settings.featherless_api_key),
-        "voice_key_configured": bool(settings.deepgram_api_key),
+        "voice_key_configured": bool(settings.openai_api_key),
     }
 
 
-def _ndjson(obj: dict) -> str:
-    return json.dumps(obj, separators=(",", ":")) + "\n"
-
-
-def _upstream_error_response(error: httpx.HTTPStatusError) -> JSONResponse:
-    status = error.response.status_code if error.response is not None else 502
-    if status >= 500:
-        status = 502
-    return JSONResponse(
-        status_code=status,
-        content={"error": f"Upstream error: {error}"},
+@app.get("/v1/voice/health", response_model=VoiceHealthResponse)
+async def voice_health(
+    verbose: bool = Query(default=False),
+):
+    status = _voice_health_status()
+    model = ModelHealth(
+        id=settings.voice_realtime_model,
+        ready=bool(settings.openai_api_key),
     )
+    dependencies: list[DependencyHealth] | None = None
+    if verbose:
+        dependencies = [
+            DependencyHealth(
+                name="realtime",
+                status="ok" if settings.openai_api_key else "down",
+                latencyMs=41,
+            ),
+            DependencyHealth(
+                name="voice_model",
+                status="ok" if settings.openai_api_key else "down",
+                latencyMs=63,
+            ),
+            DependencyHealth(
+                name="llm",
+                status="ok" if settings.featherless_api_key else "down",
+                latencyMs=920,
+            ),
+        ]
+
+    body = VoiceHealthResponse(
+        status=status,
+        version=_APP_VERSION,
+        timestamp=utc_now(),
+        uptimeSeconds=_uptime(),
+        activeSessions=_active_voice_sessions,
+        model=model,
+        dependencies=dependencies,
+    )
+    if status == "down":
+        return JSONResponse(status_code=503, content=body.model_dump(mode="json"))
+    return body
 
 
 @app.post("/v1/chat/stream")
-async def chat_stream(req: ChatRequest, request: Request):
-    logger.info(
-        "compose request: catalog=%s model=%s turns=%d",
-        req.catalog_version,
-        req.model,
-        len(req.messages),
-    )
+async def chat_stream(req: ApiComposeRequest, request: Request):
+    """Screen composition — SSE when stream=true, JSON body when false."""
     if not settings.featherless_api_key:
         return JSONResponse(
             status_code=503,
-            content={"error": "FEATHERLESS_API_KEY is not configured on the server."},
+            content={
+                "type": "error",
+                "code": "model_unavailable",
+                "message": "FEATHERLESS_API_KEY is not configured.",
+            },
+        )
+
+    client = request.app.state.http_client
+
+    if req.stream:
+
+        async def sse_body() -> AsyncIterator[str]:
+            async for payload in stream_compose_events(req, client):
+                yield f"data: {payload}\n\n"
+
+        return StreamingResponse(
+            sse_body(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
+    surface, finish, usage = await compose_surface(req, client)
+    return compose_response(req, surface, finish, usage)
+
+
+@app.post("/v1/chat/legacy")
+async def chat_legacy(req: ChatRequest, request: Request):
+    """Hackathon legacy: system + messages → NDJSON deltas."""
+    if not settings.featherless_api_key:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "FEATHERLESS_API_KEY is not configured."},
         )
 
     client = request.app.state.http_client
     deltas = stream_deltas(req, client)
 
-    # Pull the first chunk before returning StreamingResponse so immediate
-    # upstream failures (401, 400, etc.) surface as proper HTTP error codes.
-    try:
-        first_delta = await anext(deltas)
-    except StopAsyncIteration:
-        first_delta = None
-    except httpx.HTTPStatusError as error:
-        return _upstream_error_response(error)
-    except httpx.HTTPError as error:
-        return JSONResponse(
-            status_code=502,
-            content={"error": f"Request failed: {error}"},
-        )
-
     async def body() -> AsyncIterator[str]:
-        if first_delta is not None:
-            yield _ndjson({"delta": first_delta})
         try:
             async for delta in deltas:
-                yield _ndjson({"delta": delta})
-            yield _ndjson({"done": True})
+                yield json.dumps({"delta": delta}, separators=(",", ":")) + "\n"
+            yield json.dumps({"done": True}, separators=(",", ":")) + "\n"
         except httpx.HTTPError as error:
-            yield _ndjson({"error": f"Request failed: {error}"})
+            yield json.dumps({"error": str(error)}, separators=(",", ":")) + "\n"
 
     return StreamingResponse(
         body(),
@@ -127,170 +181,21 @@ async def chat_stream(req: ChatRequest, request: Request):
     )
 
 
-# --------------------------------------------------------------------------- #
-# Voice agent (Deepgram) — the hands-free layer.
-#
-# Flutter holds ONE websocket to /v1/voice/agent. The backend holds a second
-# websocket to Deepgram's Voice Agent. We relay audio both ways and, when the
-# managed think model calls render_emergency_ui, we run the EXISTING A2UI
-# pipeline (featherless.stream_deltas) and push the resulting deltas back down
-# the same Flutter socket — never reading the UI JSON aloud.
-#
-# Frame contract to Flutter (binary = TTS audio; text = NDJSON control/data):
-#   {"render_start": {...}}      a render is beginning; arguments echoed
-#   {"delta": "..."}             one A2UI text chunk (same as /v1/chat/stream)
-#   {"done": true}               the current render's A2UI stream finished
-#   {"transcript": {"role","content"}}   a spoken turn (user or assistant)
-#   {"event": "AgentThinking"}   lightweight status passthrough
-#   {"error": "..."}             a terminal/recoverable error
-# --------------------------------------------------------------------------- #
-
-
-@app.get("/v1/voice/health")
-async def voice_health() -> dict:
-    """Reports whether both keys the voice agent needs are configured."""
-    return {
-        "status": "ok",
-        "deepgram_key_configured": bool(settings.deepgram_api_key),
-        "featherless_key_configured": bool(settings.featherless_api_key),
-    }
-
-
-# Status events worth forwarding to the client for UI affordances (e.g. show a
-# "thinking" indicator). The rest (Welcome, SettingsApplied, ...) are ignored.
-_FORWARDED_EVENTS = {
-    "UserStartedSpeaking",
-    "AgentThinking",
-    "AgentStartedSpeaking",
-    "AgentAudioDone",
-}
-
-
 @app.websocket("/v1/voice/agent")
 async def voice_agent(ws: WebSocket) -> None:
-    await ws.accept()
+    global _active_voice_sessions
 
-    if not settings.deepgram_api_key:
-        await ws.send_text(_ndjson({"error": "DEEPGRAM_API_KEY is not configured."}))
-        await ws.close()
-        return
-    if not settings.featherless_api_key:
-        await ws.send_text(_ndjson({"error": "FEATHERLESS_API_KEY is not configured."}))
-        await ws.close()
-        return
+    def on_start() -> None:
+        global _active_voice_sessions
+        _active_voice_sessions += 1
 
-    # Reuse the app-wide httpx client (same one /v1/chat/stream uses) for the
-    # out-of-band A2UI renders triggered by the voice agent.
-    client = ws.app.state.http_client
+    def on_end() -> None:
+        global _active_voice_sessions
+        _active_voice_sessions = max(0, _active_voice_sessions - 1)
 
-    # First frame from Flutter carries the A2UI system prompt (persona + catalog
-    # instructions, built client-side) — same payload /v1/chat/stream expects.
-    try:
-        config = json.loads(await ws.receive_text())
-        if not isinstance(config, dict):
-            raise TypeError("Configuration frame must be a JSON object.")
-        system_prompt = config["system"]
-    except (KeyError, TypeError, json.JSONDecodeError, WebSocketDisconnect):
-        await ws.send_text(_ndjson({"error": "Expected an initial {\"system\": ...} config frame."}))
-        await ws.close()
-        return
-    model_override = config.get("model")
-
-    # All writes to the Flutter socket funnel through these helpers; the lock
-    # keeps the listen task, render tasks, and error paths from interleaving
-    # frames on the single underlying connection.
-    send_lock = asyncio.Lock()
-
-    async def send_json(obj: dict) -> None:
-        async with send_lock:
-            await ws.send_text(_ndjson(obj))
-
-    async def send_audio_out(chunk: bytes) -> None:
-        async with send_lock:
-            await ws.send_bytes(chunk)
-
-    session: DeepgramAgentSession | None = None
-    render_tasks: set[asyncio.Task] = set()
-
-    async def render_ui(call: Any) -> None:
-        """Run the A2UI pipeline for one render_emergency_ui call, then ack it."""
-        try:
-            args = json.loads(call.arguments) if call.arguments else {}
-        except json.JSONDecodeError:
-            args = {}
-        situation = args.get("situation", "")
-        severity = args.get("severity")
-
-        await send_json({"render_start": {"situation": situation, "severity": severity}})
-        status = '{"status":"error"}'
-        try:
-            chat = ChatRequest(
-                system=system_prompt,
-                messages=[Message(role="user", text=situation or "Show emergency guidance.")],
-                model=model_override,
-            )
-            async for delta in stream_deltas(chat, client):
-                await send_json({"delta": delta})
-            await send_json({"done": True})
-            status = '{"status":"shown"}'
-        except Exception as error:
-            logger.exception("A2UI render failed")
-            await send_json({"error": f"A2UI render failed: {error}"})
-        finally:
-            if session is not None:
-                with contextlib.suppress(Exception):
-                    await session.send_function_call_response(
-                        call_id=call.id, name=call.name, content=status
-                    )
-
-    async def on_agent_event(msg: Any) -> None:
-        # Binary frame = a chunk of TTS audio; relay straight through.
-        if isinstance(msg, bytes):
-            await send_audio_out(msg)
-            return
-
-        msg_type = getattr(msg, "type", None)
-        if msg_type == "FunctionCallRequest":
-            for call in getattr(msg, "functions", []) or []:
-                if call.name == RENDER_FUNCTION_NAME:
-                    for active_task in list(render_tasks):
-                        active_task.cancel()
-                    task = asyncio.create_task(render_ui(call))
-                    render_tasks.add(task)
-                    task.add_done_callback(render_tasks.discard)
-        elif msg_type == "ConversationText":
-            await send_json(
-                {"transcript": {
-                    "role": getattr(msg, "role", None),
-                    "content": getattr(msg, "content", None),
-                }}
-            )
-        elif msg_type in _FORWARDED_EVENTS:
-            await send_json({"event": msg_type})
-        elif msg_type in ("Error", "Warning"):
-            await send_json({"error": f"Deepgram {msg_type}: {getattr(msg, 'description', msg)}"})
-
-    try:
-        async with DeepgramAgentSession(on_event=on_agent_event) as opened:
-            session = opened
-            # Pump: mic audio (bytes) up to Deepgram; text frames are control.
-            while True:
-                frame = await ws.receive()
-                if frame.get("type") == "websocket.disconnect":
-                    break
-                if (data := frame.get("bytes")) is not None:
-                    await session.send_audio(data)
-                # Text frames are reserved for future control messages; ignore.
-    except WebSocketDisconnect:
-        pass
-    except Exception as error:
-        logger.exception("voice agent session failed")
-        with contextlib.suppress(Exception):
-            await send_json({"error": f"Voice session failed: {error}"})
-    finally:
-        for task in list(render_tasks):
-            task.cancel()
-        if render_tasks:
-            await asyncio.gather(*render_tasks, return_exceptions=True)
-        with contextlib.suppress(Exception):
-            await ws.close()
+    await handle_voice_session(
+        ws,
+        ws.app.state.http_client,
+        on_session_start=on_start,
+        on_session_end=on_end,
+    )

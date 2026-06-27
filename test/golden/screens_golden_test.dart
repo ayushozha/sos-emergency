@@ -21,17 +21,22 @@ void main() {
   });
 
   group('mockup screen goldens (night)', () {
-    // Night theming is proven on the critical crash screen.
-    testWidgets('serious_crash', (tester) async {
-      await pumpSurface(
-        tester,
-        sosScreen('serious_crash'),
-        brightness: SurfaceBrightness.night,
-      );
-      await expectLater(
-        find.byType(Scaffold),
-        matchesGoldenFile('goldens/serious_crash_night.png'),
-      );
-    });
+    const nightScreens = <String, String>{
+      'serious_crash': 'serious_crash_night',
+      'being_followed_night': 'being_followed_night',
+    };
+    for (final entry in nightScreens.entries) {
+      testWidgets(entry.key, (tester) async {
+        await pumpSurface(
+          tester,
+          sosScreen(entry.key),
+          brightness: SurfaceBrightness.night,
+        );
+        await expectLater(
+          find.byType(Scaffold),
+          matchesGoldenFile('goldens/${entry.value}.png'),
+        );
+      });
+    }
   });
 }

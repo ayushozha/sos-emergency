@@ -35,6 +35,7 @@ Map<ScenarioClass, EmergencyContext> scenarioContexts() => {
   ScenarioClass.beingFollowed: idleContext().copyWith(
     vehicleState: VehicleState.driving,
     speedMps: 18,
+    isNight: true,
     userSignals: const [UserSignal(intent: UserIntent.beingFollowed)],
     position: _sf,
   ),

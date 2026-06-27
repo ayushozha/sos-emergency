@@ -98,18 +98,11 @@ final class DeterministicComposerProvider
 String _$deterministicComposerHash() =>
     r'6822b96d2d54d9752442951f8ad6eb7e4d61b151';
 
-/// The scenario currently driving the on-device demo. A debug picker writes it;
-/// in production this provider is replaced by live signal fusion.
-
 @ProviderFor(DemoScenario)
 final demoScenarioProvider = DemoScenarioProvider._();
 
-/// The scenario currently driving the on-device demo. A debug picker writes it;
-/// in production this provider is replaced by live signal fusion.
 final class DemoScenarioProvider
     extends $NotifierProvider<DemoScenario, ScenarioClass> {
-  /// The scenario currently driving the on-device demo. A debug picker writes it;
-  /// in production this provider is replaced by live signal fusion.
   DemoScenarioProvider._()
     : super(
         from: null,
@@ -139,9 +132,6 @@ final class DemoScenarioProvider
 
 String _$demoScenarioHash() => r'344711caa6374697cec341d3e7126fce66e64b4a';
 
-/// The scenario currently driving the on-device demo. A debug picker writes it;
-/// in production this provider is replaced by live signal fusion.
-
 abstract class _$DemoScenario extends $Notifier<ScenarioClass> {
   ScenarioClass build();
   @$mustCallSuper
@@ -160,15 +150,115 @@ abstract class _$DemoScenario extends $Notifier<ScenarioClass> {
   }
 }
 
-/// The fused-context source. Phase 2 uses a scripted scenario source; Phase 5
-/// swaps in a live [ContextAggregator] without touching the orchestrator.
+@ProviderFor(SurfaceViewModeController)
+final surfaceViewModeControllerProvider = SurfaceViewModeControllerProvider._();
+
+final class SurfaceViewModeControllerProvider
+    extends $NotifierProvider<SurfaceViewModeController, SurfaceViewMode> {
+  SurfaceViewModeControllerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'surfaceViewModeControllerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$surfaceViewModeControllerHash();
+
+  @$internal
+  @override
+  SurfaceViewModeController create() => SurfaceViewModeController();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(SurfaceViewMode value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<SurfaceViewMode>(value),
+    );
+  }
+}
+
+String _$surfaceViewModeControllerHash() =>
+    r'b5312ffbf27495e000c3bc745df056156d106b0b';
+
+abstract class _$SurfaceViewModeController extends $Notifier<SurfaceViewMode> {
+  SurfaceViewMode build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<SurfaceViewMode, SurfaceViewMode>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<SurfaceViewMode, SurfaceViewMode>,
+              SurfaceViewMode,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}
+
+@ProviderFor(HandoffScreenPicker)
+final handoffScreenPickerProvider = HandoffScreenPickerProvider._();
+
+final class HandoffScreenPickerProvider
+    extends $NotifierProvider<HandoffScreenPicker, String> {
+  HandoffScreenPickerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'handoffScreenPickerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$handoffScreenPickerHash();
+
+  @$internal
+  @override
+  HandoffScreenPicker create() => HandoffScreenPicker();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(String value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<String>(value),
+    );
+  }
+}
+
+String _$handoffScreenPickerHash() =>
+    r'c03ca2662289ef645e5b1c228706a946fda88ea1';
+
+abstract class _$HandoffScreenPicker extends $Notifier<String> {
+  String build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<String, String>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<String, String>,
+              String,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}
 
 @ProviderFor(emergencyContextRepository)
 final emergencyContextRepositoryProvider =
     EmergencyContextRepositoryProvider._();
-
-/// The fused-context source. Phase 2 uses a scripted scenario source; Phase 5
-/// swaps in a live [ContextAggregator] without touching the orchestrator.
 
 final class EmergencyContextRepositoryProvider
     extends
@@ -178,8 +268,6 @@ final class EmergencyContextRepositoryProvider
           EmergencyContextRepository
         >
     with $Provider<EmergencyContextRepository> {
-  /// The fused-context source. Phase 2 uses a scripted scenario source; Phase 5
-  /// swaps in a live [ContextAggregator] without touching the orchestrator.
   EmergencyContextRepositoryProvider._()
     : super(
         from: null,

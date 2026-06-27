@@ -95,7 +95,7 @@ final class AiTransportProvider
   }
 }
 
-String _$aiTransportHash() => r'e514a36856cbbd1996eecda15d5635a73cd30a85';
+String _$aiTransportHash() => r'071e3f8bb36977ae3860cc6e13fca8caf8c656cd';
 
 @ProviderFor(aiComposer)
 final aiComposerProvider = AiComposerProvider._();

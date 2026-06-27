@@ -12,7 +12,7 @@ import '../support/fake_voice_channel.dart';
 
 const _config = VoiceSessionConfig(
   locale: 'en-US',
-  sampleRate: 16000,
+  sampleRate: 24000,
   codec: AudioCodec.opus,
 );
 

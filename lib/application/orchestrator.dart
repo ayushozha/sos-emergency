@@ -15,6 +15,9 @@ import 'package:sos_emergency/domain/orchestrator/scenario_library.dart';
 
 part 'orchestrator.g.dart';
 
+/// How the running app chooses what to paint in [SurfaceHost].
+enum SurfaceViewMode { live, handoff, catalog }
+
 @Riverpod(keepAlive: true)
 DecisionEngine decisionEngine(Ref ref) => const DecisionEngine();
 
@@ -22,20 +25,33 @@ DecisionEngine decisionEngine(Ref ref) => const DecisionEngine();
 DeterministicComposer deterministicComposer(Ref ref) =>
     const DeterministicComposer();
 
-/// The scenario currently driving the on-device demo. A debug picker writes it;
-/// in production this provider is replaced by live signal fusion.
 @Riverpod(keepAlive: true)
 class DemoScenario extends _$DemoScenario {
   @override
   ScenarioClass build() => ScenarioClass.unknown;
 
-  // A named command reads better than a setter on a Notifier.
   // ignore: use_setters_to_change_properties
   void select(ScenarioClass scenario) => state = scenario;
 }
 
-/// The fused-context source. Phase 2 uses a scripted scenario source; Phase 5
-/// swaps in a live [ContextAggregator] without touching the orchestrator.
+@Riverpod(keepAlive: true)
+class SurfaceViewModeController extends _$SurfaceViewModeController {
+  @override
+  SurfaceViewMode build() => SurfaceViewMode.handoff;
+
+  // ignore: use_setters_to_change_properties
+  void select(SurfaceViewMode mode) => state = mode;
+}
+
+@Riverpod(keepAlive: true)
+class HandoffScreenPicker extends _$HandoffScreenPicker {
+  @override
+  String build() => 'opening_triage';
+
+  // ignore: use_setters_to_change_properties
+  void select(String name) => state = name;
+}
+
 @Riverpod(keepAlive: true)
 EmergencyContextRepository emergencyContextRepository(Ref ref) =>
     ScenarioContextRepository(ref.watch(demoScenarioProvider));
@@ -98,7 +114,7 @@ class SurfaceController extends _$SurfaceController {
           .read(aiComposerProvider)
           .compose(classification, ctx)
           .timeout(aiTimeBudget);
-      if (generation != _generation) return; // a newer context superseded us.
+      if (generation != _generation) return;
       final proposed = Surface(
         mode: classification.mode,
         severity: classification.severity,

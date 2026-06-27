@@ -17,7 +17,7 @@ const Set<String> knownComponents = {
   'BigChoiceCard', 'ChoiceGrid', 'YesNoLarge', 'StepChecklist', 'PushToTalk',
   // Read-only status & guidance
   'SeverityBanner', 'GuidanceCallout', 'LocationCard', 'CountdownCard',
-  'ContactStatusList', 'VehicleStatusCard',
+  'ContactStatusList', 'VehicleStatusCard', 'MedicalIdCard',
   // Visualization · spatial
   'SafeRouteMap', 'ETACard', 'WeatherHazardCard',
   // Cross-cutting states

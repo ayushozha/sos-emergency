@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sos_emergency/application/ai_orchestration.dart';
+import 'package:sos_emergency/application/orchestrator.dart';
 import 'package:sos_emergency/presentation/surface/surface_host.dart';
 
 import '../golden/golden_harness.dart';
@@ -12,6 +13,9 @@ Future<void> _pumpApp(WidgetTester tester, ProviderContainer container) async {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+  container
+      .read(surfaceViewModeControllerProvider.notifier)
+      .select(SurfaceViewMode.live);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,

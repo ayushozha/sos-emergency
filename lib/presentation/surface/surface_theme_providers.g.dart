@@ -49,7 +49,7 @@ final class SurfaceBrightnessControllerProvider
 }
 
 String _$surfaceBrightnessControllerHash() =>
-    r'6616aab830806ce5ff779342e92ed1a0d96783c6';
+    r'92ff55eb33c074443ee064caaf043dc49a0d4271';
 
 /// Holds the current day/night brightness. In production this is derived from
 /// cabin-light signals; in the Phase 0 harness it is toggled manually.

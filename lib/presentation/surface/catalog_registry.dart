@@ -54,6 +54,7 @@ final Map<String, CatalogBuilder> catalogRegistry = <String, CatalogBuilder>{
   'CountdownCard': buildCountdownCard,
   'ContactStatusList': buildContactStatusList,
   'VehicleStatusCard': buildVehicleStatusCard,
+  'MedicalIdCard': buildMedicalIdCard,
 
   // Visualization · spatial
   'SafeRouteMap': buildSafeRouteMap,

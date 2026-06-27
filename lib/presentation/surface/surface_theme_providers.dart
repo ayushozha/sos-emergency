@@ -16,6 +16,9 @@ class SurfaceBrightnessController extends _$SurfaceBrightnessController {
         ? SurfaceBrightness.night
         : SurfaceBrightness.day;
   }
+
+  // ignore: use_setters_to_change_properties
+  void set(SurfaceBrightness brightness) => state = brightness;
 }
 
 /// The resolved colour palette for the current brightness. Catalog builders

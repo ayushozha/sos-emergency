@@ -4,11 +4,14 @@ import 'package:sos_emergency/application/ai_composer.dart';
 import 'package:sos_emergency/data/ai_transport/ai_transport_repository.dart';
 import 'package:sos_emergency/data/ai_transport/http_ai_transport.dart';
 import 'package:sos_emergency/domain/safety/safety_supervisor.dart';
+import 'package:sos_emergency/shared/backend_config.dart';
 
 part 'ai_orchestration.g.dart';
 
-/// Base URL of the REST composition endpoint.
-final Uri composeEndpoint = Uri.parse('https://api.sos.local/v1/chat/stream');
+/// REST composition endpoint (`POST /v1/chat/stream`).
+Uri composeEndpoint() => BackendConfig.baseUri.replace(
+  path: '${BackendConfig.baseUri.path}/v1/chat/stream'.replaceAll('//', '/'),
+);
 
 /// How long the orchestrator waits for AI enrichment before keeping the
 /// deterministic baseline.
@@ -22,8 +25,10 @@ http.Client httpClient(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
-AiTransportRepository aiTransport(Ref ref) =>
-    HttpAiTransport(ref.watch(httpClientProvider), endpoint: composeEndpoint);
+AiTransportRepository aiTransport(Ref ref) => HttpAiTransport(
+  ref.watch(httpClientProvider),
+  endpoint: composeEndpoint(),
+);
 
 @Riverpod(keepAlive: true)
 AiComposer aiComposer(Ref ref) => AiComposer(ref.watch(aiTransportProvider));

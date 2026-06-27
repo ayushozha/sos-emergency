@@ -3,4 +3,5 @@ uvicorn[standard]>=0.34
 httpx>=0.28
 pydantic>=2.10
 pydantic-settings>=2.7
-deepgram-sdk>=7.3
+websockets>=14.0
+pytest>=8.0

@@ -61,8 +61,16 @@ class DeterministicComposer {
   ];
 
   List<A2uiNode> _medical(Classification clf, EmergencyContext ctx) => [
-    _banner(clf, 'Possible medical emergency'),
+    _banner(clf, 'Possible cardiac event'),
     _guidance(clf, 'Do this now', 'Pull over and stop the car'),
+    _node(
+      'MedicalIdCard',
+      props: {
+        'bloodType': 'O+',
+        'allergies': 'Penicillin',
+        'conditions': 'Hypertension',
+      },
+    ),
     _node(
       'YesNoLarge',
       props: {
@@ -99,7 +107,7 @@ class DeterministicComposer {
   ];
 
   List<A2uiNode> _flatTire(Classification clf, EmergencyContext ctx) => [
-    _banner(clf, 'Roadside · no injuries'),
+    _banner(clf, 'Flat tire · I-280 N · narrow shoulder'),
     _guidance(clf, 'Stay safe', 'Move behind the guardrail, hazards on'),
     _node(
       'StepChecklist',
