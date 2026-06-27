@@ -230,13 +230,30 @@ async def voice_agent(ws: WebSocket) -> None:
                 messages=[Message(role="user", text=situation or "Show emergency guidance.")],
                 model=model_override,
             )
+            content_chars = 0
             async for delta in stream_deltas(chat, client):
+                content_chars += len(delta)
                 await send_json({"delta": delta})
+            # A 2xx stream that produced no A2UI text is a silent failure: the
+            # client would show "spoke but no UI". This is almost always a
+            # reasoning model (chain-of-thought lands in delta.reasoning, not
+            # delta.content) or an otherwise empty completion. Surface it as an
+            # error instead of a hollow `done`.
+            if content_chars == 0:
+                model_name = model_override or settings.featherless_model
+                raise RuntimeError(
+                    f"render model '{model_name}' returned no A2UI content "
+                    "(it may be a reasoning or gated model — use a non-reasoning "
+                    "instruct model such as Qwen/Qwen2.5-72B-Instruct)"
+                )
             await send_json({"done": True})
             status = '{"status":"shown"}'
         except Exception as error:
             logger.exception("A2UI render failed")
-            await send_json({"error": f"A2UI render failed: {error}"})
+            # The client may already be gone (this render runs as a background
+            # task); never let a failed error-send mask the original failure.
+            with contextlib.suppress(Exception):
+                await send_json({"error": f"A2UI render failed: {error}"})
         finally:
             if session is not None:
                 with contextlib.suppress(Exception):

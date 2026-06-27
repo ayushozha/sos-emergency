@@ -14,9 +14,13 @@ class VoiceRenderOverlay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final voice = ref.watch(voiceSessionControllerProvider);
     final surfaceId = voice.voiceSurfaceId;
-    if (surfaceId == null) return const SizedBox.shrink();
+    final error = voice.voiceError;
+    // Show the overlay for a rendered surface OR a render failure — failures
+    // must be visible so a "spoke but rendered nothing" turn isn't silent.
+    if (surfaceId == null && error == null) return const SizedBox.shrink();
 
     final session = ref.watch(voiceEmergencySessionProvider);
+    final isError = surfaceId == null && error != null;
     return Align(
       alignment: Alignment.bottomCenter,
       child: Material(
@@ -37,7 +41,9 @@ class VoiceRenderOverlay extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        voice.isRendering
+                        isError
+                            ? 'Voice guidance unavailable'
+                            : voice.isRendering
                             ? 'Composing guidance…'
                             : 'Voice guidance',
                         style: Theme.of(context).textTheme.titleMedium,
@@ -57,15 +63,51 @@ class VoiceRenderOverlay extends ConsumerWidget {
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
-                  child: Surface(
-                    surfaceContext: session.controller.contextFor(surfaceId),
-                  ),
+                  child: isError
+                      ? _VoiceRenderError(message: error)
+                      : Surface(
+                          surfaceContext: session.controller.contextFor(
+                            surfaceId!,
+                          ),
+                        ),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Shown when a voice-triggered render fails (gated/reasoning/empty model,
+/// invalid JSON, transport error) so the user isn't left with silence.
+class _VoiceRenderError extends StatelessWidget {
+  const _VoiceRenderError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "Couldn't show on-screen guidance.",
+                style: theme.textTheme.titleSmall,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(message, style: theme.textTheme.bodySmall),
+      ],
     );
   }
 }

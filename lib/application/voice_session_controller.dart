@@ -15,6 +15,15 @@ part 'voice_session_controller.g.dart';
 
 enum VoiceSessionStatus { idle, connecting, live, error }
 
+typedef VoiceSessionState = ({
+  VoiceSessionStatus status,
+  VoiceIntent? lastIntent,
+  String? transcript,
+  String? voiceSurfaceId,
+  bool isRendering,
+  String? voiceError,
+});
+
 /// Drives the live voice session: mic → backend agent WS → TTS + A2UI.
 @Riverpod(keepAlive: true)
 class VoiceSessionController extends _$VoiceSessionController {
@@ -24,14 +33,7 @@ class VoiceSessionController extends _$VoiceSessionController {
   VoiceAudioIo? _audio;
 
   @override
-  ({
-    VoiceSessionStatus status,
-    VoiceIntent? lastIntent,
-    String? transcript,
-    String? voiceSurfaceId,
-    bool isRendering,
-  })
-  build() {
+  VoiceSessionState build() {
     ref.onDispose(() {
       unawaited(_sub?.cancel());
       unawaited(_surfaceSub?.cancel());
@@ -44,6 +46,7 @@ class VoiceSessionController extends _$VoiceSessionController {
       transcript: null,
       voiceSurfaceId: null,
       isRendering: false,
+      voiceError: null,
     );
   }
 
@@ -65,6 +68,7 @@ class VoiceSessionController extends _$VoiceSessionController {
       transcript: null,
       voiceSurfaceId: null,
       isRendering: false,
+      voiceError: null,
     );
 
     final repo = ref.read(voiceSessionProvider);
@@ -91,13 +95,14 @@ class VoiceSessionController extends _$VoiceSessionController {
         .connect(config)
         .listen(
           _onFrame,
-          onError: (_) {
+          onError: (Object error) {
             state = (
               status: VoiceSessionStatus.error,
               lastIntent: state.lastIntent,
               transcript: state.transcript,
               voiceSurfaceId: state.voiceSurfaceId,
               isRendering: false,
+              voiceError: '$error',
             );
           },
         );
@@ -123,6 +128,7 @@ class VoiceSessionController extends _$VoiceSessionController {
       transcript: null,
       voiceSurfaceId: null,
       isRendering: false,
+      voiceError: null,
     );
   }
 
@@ -133,6 +139,7 @@ class VoiceSessionController extends _$VoiceSessionController {
       transcript: state.transcript,
       voiceSurfaceId: null,
       isRendering: state.isRendering,
+      voiceError: null,
     );
   }
 
@@ -143,6 +150,7 @@ class VoiceSessionController extends _$VoiceSessionController {
       transcript: state.transcript,
       voiceSurfaceId: surfaceId,
       isRendering: false,
+      voiceError: null,
     );
   }
 
@@ -153,6 +161,8 @@ class VoiceSessionController extends _$VoiceSessionController {
       transcript: state.transcript,
       voiceSurfaceId: state.voiceSurfaceId,
       isRendering: rendering,
+      // A fresh render supersedes any prior failure message.
+      voiceError: rendering ? null : state.voiceError,
     );
   }
 
@@ -165,6 +175,7 @@ class VoiceSessionController extends _$VoiceSessionController {
           transcript: state.transcript,
           voiceSurfaceId: state.voiceSurfaceId,
           isRendering: state.isRendering,
+          voiceError: state.voiceError,
         );
       case VoiceServerTranscript(:final role, :final text):
         final line = role == TranscriptRole.agent ? 'Agent: $text' : text;
@@ -174,6 +185,7 @@ class VoiceSessionController extends _$VoiceSessionController {
           transcript: line,
           voiceSurfaceId: state.voiceSurfaceId,
           isRendering: state.isRendering,
+          voiceError: state.voiceError,
         );
       case VoiceServerIntent(:final intent):
         state = (
@@ -182,17 +194,20 @@ class VoiceSessionController extends _$VoiceSessionController {
           transcript: state.transcript,
           voiceSurfaceId: state.voiceSurfaceId,
           isRendering: state.isRendering,
+          voiceError: state.voiceError,
         );
-      case VoiceServerError(:final fatal):
-        if (fatal) {
-          state = (
-            status: VoiceSessionStatus.error,
-            lastIntent: state.lastIntent,
-            transcript: state.transcript,
-            voiceSurfaceId: state.voiceSurfaceId,
-            isRendering: false,
-          );
-        }
+      case VoiceServerError(:final fatal, :final message):
+        // Surface render/agent failures so a "spoke but rendered nothing" turn
+        // is visible instead of silently dropping. Non-fatal errors still clear
+        // the rendering spinner.
+        state = (
+          status: fatal ? VoiceSessionStatus.error : state.status,
+          lastIntent: state.lastIntent,
+          transcript: state.transcript,
+          voiceSurfaceId: state.voiceSurfaceId,
+          isRendering: false,
+          voiceError: message,
+        );
       case VoiceServerSessionClosed():
         unawaited(disconnect());
       default:

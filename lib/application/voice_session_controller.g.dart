@@ -15,17 +15,7 @@ final voiceSessionControllerProvider = VoiceSessionControllerProvider._();
 
 /// Drives the live voice session: mic → backend agent WS → TTS + A2UI.
 final class VoiceSessionControllerProvider
-    extends
-        $NotifierProvider<
-          VoiceSessionController,
-          ({
-            bool isRendering,
-            VoiceIntent? lastIntent,
-            VoiceSessionStatus status,
-            String? transcript,
-            String? voiceSurfaceId,
-          })
-        > {
+    extends $NotifierProvider<VoiceSessionController, VoiceSessionState> {
   /// Drives the live voice session: mic → backend agent WS → TTS + A2UI.
   VoiceSessionControllerProvider._()
     : super(
@@ -46,103 +36,30 @@ final class VoiceSessionControllerProvider
   VoiceSessionController create() => VoiceSessionController();
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(
-    ({
-      bool isRendering,
-      VoiceIntent? lastIntent,
-      VoiceSessionStatus status,
-      String? transcript,
-      String? voiceSurfaceId,
-    })
-    value,
-  ) {
+  Override overrideWithValue(VoiceSessionState value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride:
-          $SyncValueProvider<
-            ({
-              bool isRendering,
-              VoiceIntent? lastIntent,
-              VoiceSessionStatus status,
-              String? transcript,
-              String? voiceSurfaceId,
-            })
-          >(value),
+      providerOverride: $SyncValueProvider<VoiceSessionState>(value),
     );
   }
 }
 
 String _$voiceSessionControllerHash() =>
-    r'b2a40a3a42bc1333173de4b5592c5f1e416c33db';
+    r'6abaca4f2ff884b8876b58dc58493a31b2c8e6c2';
 
 /// Drives the live voice session: mic → backend agent WS → TTS + A2UI.
 
-abstract class _$VoiceSessionController
-    extends
-        $Notifier<
-          ({
-            bool isRendering,
-            VoiceIntent? lastIntent,
-            VoiceSessionStatus status,
-            String? transcript,
-            String? voiceSurfaceId,
-          })
-        > {
-  ({
-    bool isRendering,
-    VoiceIntent? lastIntent,
-    VoiceSessionStatus status,
-    String? transcript,
-    String? voiceSurfaceId,
-  })
-  build();
+abstract class _$VoiceSessionController extends $Notifier<VoiceSessionState> {
+  VoiceSessionState build();
   @$mustCallSuper
   @override
   void runBuild() {
-    final ref =
-        this.ref
-            as $Ref<
-              ({
-                bool isRendering,
-                VoiceIntent? lastIntent,
-                VoiceSessionStatus status,
-                String? transcript,
-                String? voiceSurfaceId,
-              }),
-              ({
-                bool isRendering,
-                VoiceIntent? lastIntent,
-                VoiceSessionStatus status,
-                String? transcript,
-                String? voiceSurfaceId,
-              })
-            >;
+    final ref = this.ref as $Ref<VoiceSessionState, VoiceSessionState>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<
-                ({
-                  bool isRendering,
-                  VoiceIntent? lastIntent,
-                  VoiceSessionStatus status,
-                  String? transcript,
-                  String? voiceSurfaceId,
-                }),
-                ({
-                  bool isRendering,
-                  VoiceIntent? lastIntent,
-                  VoiceSessionStatus status,
-                  String? transcript,
-                  String? voiceSurfaceId,
-                })
-              >,
-              ({
-                bool isRendering,
-                VoiceIntent? lastIntent,
-                VoiceSessionStatus status,
-                String? transcript,
-                String? voiceSurfaceId,
-              }),
+              AnyNotifier<VoiceSessionState, VoiceSessionState>,
+              VoiceSessionState,
               Object?,
               Object?
             >;
