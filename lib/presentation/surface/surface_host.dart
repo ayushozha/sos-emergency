@@ -172,11 +172,7 @@ class _DebugBar extends ConsumerWidget {
           ),
           if (viewMode == SurfaceViewMode.live && BackendConfig.useBackend) ...[
             FilledButton.tonalIcon(
-              onPressed: () async {
-                await ref
-                    .read(voiceSessionControllerProvider.notifier)
-                    .connectAndSpeak('I need emergency help');
-              },
+              onPressed: () => ref.toggleVoice(),
               icon: Icon(voiceLive ? Icons.mic : Icons.mic_none),
               label: Text(voiceLive ? 'Voice on' : 'Voice'),
             ),

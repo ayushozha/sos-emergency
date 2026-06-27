@@ -207,11 +207,15 @@ async def handle_voice_session(
         elif msg_type in _EVENT_MAP:
             await send_json(_wire(VoiceEvent(name=_EVENT_MAP[msg_type])))
         elif msg_type in ("Error", "Warning"):
+            message = str(getattr(msg, "description", msg))
+            if "active response in progress" in message:
+                logger.debug("suppressed non-fatal realtime overlap: %s", message)
+                return
             await send_json(
                 _wire(
                     VoiceError(
                         code="upstream_error",
-                        message=str(getattr(msg, "description", msg)),
+                        message=message,
                     )
                 )
             )
@@ -256,19 +260,20 @@ async def handle_voice_session(
                         catalogVersion="2026.06.0",
                     )
                 )
-                await send_json(
-                    VoiceSessionReady(
-                        sessionId=session_id,
-                        config={
-                            "sampleRate": config.sampleRate,
-                            "codec": config.codec,
-                        },
-                    ).model_dump(mode="json")
-                )
                 break
 
         async with OpenAIRealtimeSession(on_event=on_agent_event) as opened:
             session = opened
+            await session.wait_until_configured()
+            await send_json(
+                VoiceSessionReady(
+                    sessionId=session_id,
+                    config={
+                        "sampleRate": config.sampleRate,
+                        "codec": config.codec,
+                    },
+                ).model_dump(mode="json")
+            )
             while True:
                 frame = await ws.receive()
                 if frame.get("type") == "websocket.disconnect":

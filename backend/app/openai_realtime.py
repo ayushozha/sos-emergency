@@ -90,6 +90,16 @@ class OpenAIRealtimeSession:
         self._send_lock = asyncio.Lock()
         self._response_active = False
         self._session_configured = False
+        self._pending_response = False
+        self._pending_user_text: list[str] = []
+        self._session_updated = asyncio.Event()
+        self._configuring = False
+        self._configured_event = asyncio.Event()
+        self._output_audio_active = False
+        self._agent_busy = False
+
+    async def wait_until_configured(self, *, timeout: float = 30) -> None:
+        await asyncio.wait_for(self._configured_event.wait(), timeout=timeout)
 
     async def __aenter__(self) -> OpenAIRealtimeSession:
         if not settings.openai_api_key:
@@ -110,13 +120,20 @@ class OpenAIRealtimeSession:
         if self._ws is None:
             return
         async with self._send_lock:
+            if event.get("type") == "response.create":
+                self._agent_busy = True
             await self._ws.send(json.dumps(event, separators=(",", ":")))
 
     async def configure(self) -> None:
         """Send session.update and trigger the opening greeting."""
         if self._session_configured:
             return
+        self._configuring = True
+        # Reserve the in-flight response before any await so injected user text
+        # cannot race a second response.create during session.update.
+        self._response_active = True
         self._session_configured = True
+        self._pending_response = False
         greeting = settings.voice_greeting.strip()
         instructions = self._dispatcher_prompt
         if greeting:
@@ -124,9 +141,32 @@ class OpenAIRealtimeSession:
                 f"{instructions}\n\nWhen the session begins, greet the caller by "
                 f"saying exactly: \"{greeting}\""
             )
+        self._session_updated.clear()
         await self._send(_session_update_event(instructions=instructions))
-        self._response_active = True
-        await self._send({"type": "response.create"})
+        try:
+            await asyncio.wait_for(self._session_updated.wait(), timeout=10)
+        except TimeoutError:
+            logger.warning("session.updated not received; creating greeting anyway")
+        if self._pending_user_text:
+            # Caller already sent text (connectAndSpeak) — skip the greeting turn.
+            self._response_active = False
+            self._pending_response = False
+            while self._pending_user_text:
+                await self._inject_user_message(self._pending_user_text.pop(0))
+            self._response_active = True
+            await self._send({"type": "response.create"})
+        else:
+            await self._send({"type": "response.create"})
+        self._configuring = False
+        self._configured_event.set()
+
+    async def _flush_pending_response(self) -> None:
+        while self._pending_user_text:
+            await self._inject_user_message(self._pending_user_text.pop(0))
+        if self._pending_response:
+            self._pending_response = False
+            self._response_active = True
+            await self._send({"type": "response.create"})
 
     async def send_audio(self, chunk: bytes) -> None:
         if not chunk:
@@ -138,7 +178,7 @@ class OpenAIRealtimeSession:
             }
         )
 
-    async def send_inject_user_message(self, content: str) -> None:
+    async def _inject_user_message(self, content: str) -> None:
         await self._send(
             {
                 "type": "conversation.item.create",
@@ -149,8 +189,20 @@ class OpenAIRealtimeSession:
                 },
             }
         )
-        if not self._response_active:
-            await self._send({"type": "response.create"})
+
+    async def send_inject_user_message(self, content: str) -> None:
+        if (
+            self._configuring
+            or not self._session_configured
+            or self._agent_busy
+        ):
+            self._pending_user_text.append(content)
+            if self._session_configured and not self._configuring:
+                self._pending_response = True
+            return
+        await self._inject_user_message(content)
+        self._response_active = True
+        await self._send({"type": "response.create"})
 
     async def send_function_call_response(
         self, *, call_id: str, name: str, content: str
@@ -194,7 +246,12 @@ class OpenAIRealtimeSession:
         event_type = event.get("type", "")
 
         if event_type == "session.created":
+            self._response_active = True
             await self.configure()
+            return
+
+        if event_type == "session.updated":
+            self._session_updated.set()
             return
 
         if event_type in {"response.audio.delta", "response.output_audio.delta"}:
@@ -257,15 +314,28 @@ class OpenAIRealtimeSession:
 
         if event_type == "response.created":
             self._response_active = True
+            self._agent_busy = True
             await self._emit(SimpleNamespace(type="AgentThinking"))
             return
 
         if event_type in {"response.done", "response.cancelled", "response.failed"}:
             self._response_active = False
+            self._agent_busy = False
+            await self._flush_pending_response()
             return
 
         if event_type == "response.output_audio.started":
+            self._output_audio_active = True
             await self._emit(SimpleNamespace(type="AgentStartedSpeaking"))
+            return
+
+        if event_type in {
+            "response.output_audio.done",
+            "response.audio.done",
+        }:
+            self._output_audio_active = False
+            self._agent_busy = False
+            await self._flush_pending_response()
             return
 
         if event_type == "error":
