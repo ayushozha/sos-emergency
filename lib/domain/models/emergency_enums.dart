@@ -1,4 +1,5 @@
-/// The MVP scenario the deterministic engine classifies an incident into.
+/// The scenario the deterministic engine classifies an incident into. The first
+/// block is the MVP set; the rest are the Phase 6 expansion.
 enum ScenarioClass {
   crash,
   medical,
@@ -8,12 +9,17 @@ enum ScenarioClass {
   lockedOut,
   outOfGas,
   unsafeParked,
+  // ---- expansion ----
+  severeWeather,
+  stranded,
+  harassment,
+  documentIncident,
   unknown,
 }
 
 /// The interaction mode a scenario maps to — drives which deterministic Surface
 /// the composer builds.
-enum AppMode { triage, crash, medical, threat, roadside }
+enum AppMode { triage, crash, medical, threat, roadside, documentation }
 
 /// Network state. The app degrades layout and queues actions when offline.
 enum Connectivity { online, degraded, offline }
@@ -33,6 +39,9 @@ enum UserIntent {
   roadside,
   outOfGas,
   document,
+  severeWeather,
+  stranded,
+  harassment,
 }
 
 /// Environmental hazards that can raise a scenario's urgency on their own.

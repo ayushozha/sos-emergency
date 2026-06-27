@@ -8,10 +8,14 @@ const Map<ScenarioClass, Severity> baselineSeverityTable = {
   ScenarioClass.medical: Severity.critical,
   ScenarioClass.beingFollowed: Severity.high,
   ScenarioClass.unsafeParked: Severity.high,
+  ScenarioClass.harassment: Severity.high,
+  ScenarioClass.severeWeather: Severity.high,
   ScenarioClass.flatTire: Severity.moderate,
   ScenarioClass.wontStart: Severity.moderate,
   ScenarioClass.lockedOut: Severity.moderate,
   ScenarioClass.outOfGas: Severity.moderate,
+  ScenarioClass.stranded: Severity.moderate,
+  ScenarioClass.documentIncident: Severity.neutral,
   ScenarioClass.unknown: Severity.neutral,
 };
 

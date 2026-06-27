@@ -8,11 +8,13 @@ import 'package:sos_emergency/dev/sos_screen_fixtures.dart';
 import 'package:sos_emergency/domain/models/emergency_enums.dart';
 import 'package:sos_emergency/domain/models/surface_brightness.dart';
 import 'package:sos_emergency/presentation/surface/a2ui_renderer.dart';
+import 'package:sos_emergency/presentation/surface/surface_actions.dart';
 import 'package:sos_emergency/presentation/surface/surface_theme_providers.dart';
 import 'package:sos_emergency/shared/backend_config.dart';
 
 /// Hosts the renderer: paints the themed ground and renders the Surface the
-/// orchestrator composes for the current scenario.
+/// orchestrator composes for the current scenario. A debug bar offers preview
+/// modes (handoff / catalog / live), scenario pickers, and day/night toggle.
 class SurfaceHost extends ConsumerWidget {
   const SurfaceHost({super.key});
 
@@ -20,7 +22,7 @@ class SurfaceHost extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(surfacePaletteProvider);
     final viewMode = ref.watch(surfaceViewModeControllerProvider);
-    final surfaceAsync = ref.watch(surfaceControllerProvider);
+    final surface = ref.watch(surfaceControllerProvider);
 
     return ColoredBox(
       color: palette.ground,
@@ -30,15 +32,14 @@ class SurfaceHost extends ConsumerWidget {
             _DebugBar(viewMode: viewMode),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(SosTokens.space12),
+                padding: const EdgeInsets.fromLTRB(
+                  SosTokens.space12,
+                  SosTokens.space4,
+                  SosTokens.space12,
+                  SosTokens.space12,
+                ),
                 child: switch (viewMode) {
-                  SurfaceViewMode.live => surfaceAsync.when(
-                    data: (surface) => A2uiRenderer(node: surface.root),
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (error, _) =>
-                        Center(child: Text('Surface error: $error')),
-                  ),
+                  SurfaceViewMode.live => A2uiRenderer(node: surface.root),
                   SurfaceViewMode.handoff => A2uiRenderer(
                     node: sosScreen(ref.watch(handoffScreenPickerProvider)),
                   ),
@@ -53,7 +54,6 @@ class SurfaceHost extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 class _DebugBar extends ConsumerWidget {
@@ -66,9 +66,13 @@ class _DebugBar extends ConsumerWidget {
     final palette = ref.watch(surfacePaletteProvider);
     final scenario = ref.watch(demoScenarioProvider);
     final handoff = ref.watch(handoffScreenPickerProvider);
-    final brightness = ref.watch(surfaceBrightnessControllerProvider);
-    final voiceStatus = ref.watch(voiceSessionControllerProvider);
-    final isDay = brightness == SurfaceBrightness.day;
+    final voice = ref.watch(voiceSessionControllerProvider);
+    final isDay =
+        ref.watch(surfaceBrightnessControllerProvider) == SurfaceBrightness.day;
+    final onTriage = scenario == ScenarioClass.unknown;
+    final voiceLive =
+        voice.status == VoiceSessionStatus.live ||
+        voice.status == VoiceSessionStatus.connecting;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -88,7 +92,9 @@ class _DebugBar extends ConsumerWidget {
             dropdownColor: palette.surface,
             onChanged: (value) {
               if (value != null) {
-                ref.read(surfaceViewModeControllerProvider.notifier).select(value);
+                ref
+                    .read(surfaceViewModeControllerProvider.notifier)
+                    .select(value);
               }
             },
             items: const [
@@ -107,6 +113,15 @@ class _DebugBar extends ConsumerWidget {
             ],
           ),
           if (viewMode == SurfaceViewMode.live) ...[
+            if (!onTriage)
+              TextButton.icon(
+                onPressed: ref.backToTriage,
+                icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                label: const Text('Back'),
+                style: TextButton.styleFrom(
+                  foregroundColor: palette.textMuted,
+                ),
+              ),
             Text('Scenario', style: TextStyle(color: palette.textMuted)),
             DropdownButton<ScenarioClass>(
               value: scenario,
@@ -146,13 +161,14 @@ class _DebugBar extends ConsumerWidget {
               ],
             ),
           ],
-          FilledButton.tonalIcon(
+          IconButton(
+            tooltip: isDay ? 'Night' : 'Day',
+            color: palette.textMuted,
             onPressed: () =>
                 ref.read(surfaceBrightnessControllerProvider.notifier).toggle(),
             icon: Icon(
               isDay ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
             ),
-            label: Text(isDay ? 'Night' : 'Day'),
           ),
           if (viewMode == SurfaceViewMode.live && BackendConfig.useBackend) ...[
             FilledButton.tonalIcon(
@@ -161,19 +177,17 @@ class _DebugBar extends ConsumerWidget {
                     .read(voiceSessionControllerProvider.notifier)
                     .connectAndSpeak('I need emergency help');
               },
-              icon: Icon(
-                voiceStatus.connected ? Icons.mic : Icons.mic_none,
-              ),
-              label: Text(voiceStatus.connected ? 'Voice on' : 'Voice'),
+              icon: Icon(voiceLive ? Icons.mic : Icons.mic_none),
+              label: Text(voiceLive ? 'Voice on' : 'Voice'),
             ),
-            if (voiceStatus.lastTranscript.isNotEmpty)
+            if (voice.lastTranscript.isNotEmpty)
               Text(
-                '${voiceStatus.lastRole}: ${voiceStatus.lastTranscript}',
+                '${voice.lastRole}: ${voice.lastTranscript}',
                 style: TextStyle(color: palette.textMuted, fontSize: 12),
               ),
-            if (voiceStatus.error.isNotEmpty)
+            if (voice.error.isNotEmpty)
               Text(
-                voiceStatus.error,
+                voice.error,
                 style: const TextStyle(color: Color(0xFFC63A33), fontSize: 12),
               ),
           ],

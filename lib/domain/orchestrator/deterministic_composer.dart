@@ -22,6 +22,10 @@ class DeterministicComposer {
       ScenarioClass.wontStart => _wontStart(clf, ctx),
       ScenarioClass.lockedOut => _lockedOut(clf, ctx),
       ScenarioClass.outOfGas => _outOfGas(clf, ctx),
+      ScenarioClass.severeWeather => _severeWeather(clf, ctx),
+      ScenarioClass.stranded => _stranded(clf, ctx),
+      ScenarioClass.harassment => _harassment(clf, ctx),
+      ScenarioClass.documentIncident => _documentIncident(clf, ctx),
       ScenarioClass.unknown => _triage(clf, ctx),
     };
 
@@ -176,19 +180,109 @@ class DeterministicComposer {
     ),
   ];
 
+  // ---- expansion scenarios ----
+
+  List<A2uiNode> _severeWeather(Classification clf, EmergencyContext ctx) => [
+    _banner(clf, 'Severe weather'),
+    _guidance(
+      clf,
+      'Do this now',
+      'Shelter in place or move away from the hazard',
+    ),
+    _node(
+      'WeatherHazardCard',
+      props: {
+        'condition': 'Severe weather in your area',
+        'tier': clf.severity.name,
+        'advice': 'Avoid flooded roads and downed lines. Stay informed.',
+      },
+    ),
+    _node(
+      'ActionStack',
+      props: {
+        'carState': ctx.vehicleState.carStateToken,
+        'actions': [
+          {'label': 'Call 911', 'icon': 'call', 'tier': 'critical'},
+          {'label': 'Share location', 'icon': 'location'},
+        ],
+      },
+    ),
+  ];
+
+  List<A2uiNode> _stranded(Classification clf, EmergencyContext ctx) => [
+    _banner(clf, 'Stranded'),
+    _guidance(
+      clf,
+      'Stay safe',
+      'Stay put, stay visible, conserve phone battery',
+    ),
+    _locationCard(ctx, sharing: true),
+    _node(
+      'ActionStack',
+      props: {
+        'carState': ctx.vehicleState.carStateToken,
+        'actions': [
+          {'label': 'Call roadside help', 'icon': 'roadside'},
+          {'label': 'Notify a contact', 'icon': 'contacts'},
+        ],
+      },
+    ),
+  ];
+
+  List<A2uiNode> _harassment(Classification clf, EmergencyContext ctx) => [
+    _banner(clf, 'Threat · harassment'),
+    _guidance(clf, 'Do this now', 'Get to a busy, public place or the police'),
+    _safeRouteMap(),
+    _node(
+      'NotifyContactsAction',
+      props: {
+        'contacts': [
+          {'name': 'Maya', 'relation': 'Sister', 'status': 'queued'},
+          {'name': 'Dad', 'relation': 'Emergency contact', 'status': 'queued'},
+        ],
+      },
+    ),
+  ];
+
+  List<A2uiNode> _documentIncident(
+    Classification clf,
+    EmergencyContext ctx,
+  ) => [
+    _banner(clf, 'Documenting'),
+    _guidance(clf, 'Recording', 'Time, place and details are being captured'),
+    _locationCard(ctx, sharing: false),
+    _node(
+      'SectionCard',
+      props: {'title': 'What happened'},
+      children: [
+        _node(
+          'GuidanceText',
+          props: {
+            'kicker': 'Notes',
+            'text': 'Describe the incident — who, what, where, when.',
+          },
+        ),
+      ],
+    ),
+  ];
+
   List<A2uiNode> _triage(Classification clf, EmergencyContext ctx) => [
+    _node(
+      'GuidanceText',
+      props: {'kicker': 'Emergency assistant', 'text': "What's happening?"},
+    ),
     _node(
       'ChoiceGrid',
       props: {'columns': 4},
       children: const [
-        _ChoiceData('Car problem', 'vehicle'),
-        _ChoiceData('Crash', 'crash'),
-        _ChoiceData('Medical', 'medical'),
-        _ChoiceData('I feel unsafe', 'unsafe'),
-        _ChoiceData('Being followed', 'followed'),
-        _ChoiceData('Locked out', 'locked-out'),
-        _ChoiceData('Roadside help', 'roadside'),
-        _ChoiceData('Document it', 'document'),
+        _ChoiceData('Car problem', 'vehicle', 'wontStart'),
+        _ChoiceData('Crash', 'crash', 'crash'),
+        _ChoiceData('Medical', 'medical', 'medical'),
+        _ChoiceData('I feel unsafe', 'unsafe', 'unsafeParked'),
+        _ChoiceData('Being followed', 'followed', 'beingFollowed'),
+        _ChoiceData('Locked out', 'locked-out', 'lockedOut'),
+        _ChoiceData('Roadside help', 'roadside', 'flatTire'),
+        _ChoiceData('Document it', 'document', 'documentIncident'),
       ].map(_choiceCard).toList(),
     ),
     _node('PushToTalk', props: {'state': 'idle'}),
@@ -292,7 +386,11 @@ class DeterministicComposer {
 
   A2uiNode _choiceCard(_ChoiceData data) => _node(
     'BigChoiceCard',
-    props: {'label': data.label, 'icon': data.icon},
+    props: {
+      'label': data.label,
+      'icon': data.icon,
+      'scenario': data.scenario,
+    },
   );
 
   A2uiNode _node(
@@ -310,7 +408,10 @@ class DeterministicComposer {
 }
 
 class _ChoiceData {
-  const _ChoiceData(this.label, this.icon);
+  const _ChoiceData(this.label, this.icon, this.scenario);
   final String label;
   final String icon;
+
+  /// The scenario this choice navigates to.
+  final String scenario;
 }

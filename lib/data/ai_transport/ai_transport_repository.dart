@@ -1,21 +1,23 @@
+import 'package:sos_emergency/data/ai_transport/models/compose_request.dart';
 import 'package:sos_emergency/domain/models/a2ui_node.dart';
-import 'package:sos_emergency/domain/models/classification.dart';
-import 'package:sos_emergency/domain/models/emergency_context.dart';
 
-/// Thrown when the compose transport fails or returns an invalid surface.
-class AiTransportException implements Exception {
-  AiTransportException(this.message);
-  final String message;
-
-  @override
-  String toString() => 'AiTransportException: $message';
+/// Transport boundary for screen composition — the fast REST endpoint
+/// (`POST /v1/chat/stream`). Returns the complete A2UI surface; throws
+/// [AiTransportException] on any transport/HTTP failure so the caller can
+/// time-box and fall back to the deterministic baseline.
+// ignore: one_member_abstracts
+abstract interface class AiTransportRepository {
+  Future<A2uiNode> compose(ComposeRequest request);
 }
 
-/// Transport boundary for screen composition (PDF `POST /v1/chat/stream`).
-abstract interface class AiTransportRepository {
-  Future<A2uiNode> compose({
-    required Classification classification,
-    required EmergencyContext context,
-    bool stream = false,
-  });
+/// Raised when composition fails at the transport layer (non-200, bad JSON,
+/// network error). Treated by the orchestrator as "AI unavailable".
+class AiTransportException implements Exception {
+  const AiTransportException(this.message, {this.statusCode});
+
+  final String message;
+  final int? statusCode;
+
+  @override
+  String toString() => 'AiTransportException($statusCode): $message';
 }

@@ -1,16 +1,28 @@
+// Tests read several providers off one container, interleaved with awaits and
+// expects, where cascades don't compose cleanly.
+// ignore_for_file: cascade_invocations
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sos_emergency/application/ai_orchestration.dart';
 import 'package:sos_emergency/application/orchestrator.dart';
 import 'package:sos_emergency/domain/models/emergency_enums.dart';
 import 'package:sos_emergency/domain/models/severity.dart';
 
+/// A container with AI enrichment disabled — these tests exercise the
+/// deterministic baseline loop only (no network).
+ProviderContainer _deterministicContainer() {
+  final container = ProviderContainer();
+  addTearDown(container.dispose);
+  container.read(aiEnabledProvider.notifier).disable();
+  return container;
+}
+
 void main() {
   group('orchestrator baseline loop', () {
-    test('starts on the triage surface before any signal', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+    test('starts on the triage surface before any signal', () {
+      final container = _deterministicContainer();
 
-      final surface = await container.read(surfaceControllerProvider.future);
+      final surface = container.read(surfaceControllerProvider);
       expect(surface.mode, AppMode.triage);
       expect(surface.isFallback, isTrue);
     });
@@ -18,8 +30,8 @@ void main() {
     test(
       'selecting a scenario drives the matching deterministic Surface',
       () async {
-        final container = ProviderContainer();
-        addTearDown(container.dispose);
+        final container = _deterministicContainer();
+        // Subscribe so the context stream starts emitting.
         container.listen(surfaceControllerProvider, (_, _) {});
 
         container
@@ -27,7 +39,7 @@ void main() {
             .select(ScenarioClass.crash);
         await container.read(emergencyContextProvider.future);
 
-        final surface = await container.read(surfaceControllerProvider.future);
+        final surface = container.read(surfaceControllerProvider);
         expect(surface.mode, AppMode.crash);
         expect(surface.severity, Severity.critical);
         expect(surface.root.props['tier'], 'critical');
@@ -35,8 +47,7 @@ void main() {
     );
 
     test('switching scenarios recomposes the Surface', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+      final container = _deterministicContainer();
       container.listen(surfaceControllerProvider, (_, _) {});
 
       container
@@ -44,7 +55,7 @@ void main() {
           .select(ScenarioClass.flatTire);
       await container.read(emergencyContextProvider.future);
       expect(
-        (await container.read(surfaceControllerProvider.future)).mode,
+        container.read(surfaceControllerProvider).mode,
         AppMode.roadside,
       );
 
@@ -53,7 +64,7 @@ void main() {
           .select(ScenarioClass.beingFollowed);
       await container.read(emergencyContextProvider.future);
       expect(
-        (await container.read(surfaceControllerProvider.future)).mode,
+        container.read(surfaceControllerProvider).mode,
         AppMode.threat,
       );
     });

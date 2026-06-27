@@ -56,10 +56,17 @@ class DecisionEngine {
         return ScenarioClass.lockedOut;
       case UserIntent.outOfGas:
         return ScenarioClass.outOfGas;
+      case UserIntent.harassment:
+        return ScenarioClass.harassment;
+      case UserIntent.severeWeather:
+        return ScenarioClass.severeWeather;
+      case UserIntent.stranded:
+        return ScenarioClass.stranded;
+      case UserIntent.document:
+        return ScenarioClass.documentIncident;
       case UserIntent.roadside:
       case UserIntent.carProblem:
         return _vehicleScenario(bus) ?? ScenarioClass.unknown;
-      case UserIntent.document:
       case UserIntent.none:
         break;
     }

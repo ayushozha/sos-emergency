@@ -1,79 +1,161 @@
 import 'dart:async';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:sos_emergency/data/api/api_enums.dart';
+import 'package:sos_emergency/data/voice_session/backend_voice_session.dart';
+import 'package:sos_emergency/data/voice_session/fake_voice_session.dart';
+import 'package:sos_emergency/data/voice_session/models/voice_client_frame.dart';
+import 'package:sos_emergency/data/voice_session/models/voice_server_frame.dart';
+import 'package:sos_emergency/data/voice_session/models/voice_session_config.dart';
 import 'package:sos_emergency/data/voice_session/voice_session_repository.dart';
-import 'package:sos_emergency/domain/models/severity.dart';
+import 'package:sos_emergency/shared/backend_config.dart';
 
 part 'voice_session_controller.g.dart';
 
-/// Debug/status surface for the active voice WebSocket session.
-class VoiceSessionStatus {
-  const VoiceSessionStatus({
-    this.connected = false,
-    this.lastTranscript = '',
-    this.lastRole = '',
-    this.error = '',
-  });
-
-  final bool connected;
-  final String lastTranscript;
-  final String lastRole;
-  final String error;
-
-  VoiceSessionStatus copyWith({
-    bool? connected,
-    String? lastTranscript,
-    String? lastRole,
-    String? error,
-  }) => VoiceSessionStatus(
-    connected: connected ?? this.connected,
-    lastTranscript: lastTranscript ?? this.lastTranscript,
-    lastRole: lastRole ?? this.lastRole,
-    error: error ?? this.error,
-  );
+/// The live voice session. Defaults to an in-memory fake (no server); when
+/// `USE_BACKEND=true` a reconnecting WebSocket with TTS playback is wired in.
+/// Independent of the composition path — a dropped socket here never blocks
+/// the REST channel.
+@Riverpod(keepAlive: true)
+VoiceSessionRepository voiceSession(Ref ref) {
+  if (BackendConfig.useBackend && BackendConfig.isConfigured) {
+    final base = BackendConfig.baseUri;
+    final scheme = base.scheme == 'https' ? 'wss' : 'ws';
+    final uri = base.replace(
+      scheme: scheme,
+      path: '${base.path}/v1/voice/agent'.replaceAll('//', '/'),
+    );
+    final session = BackendVoiceSession(uri: uri);
+    ref.onDispose(session.close);
+    return session;
+  }
+  return FakeVoiceSession();
 }
+
+enum VoiceSessionStatus { idle, connecting, live, error }
+
+/// Drives the voice session and surfaces its state, transcripts, and the latest
+/// recognised intent (which the orchestrator can feed back into the loop as a
+/// UserSignal).
+typedef VoiceSessionState = ({
+  VoiceSessionStatus status,
+  VoiceIntent? lastIntent,
+  String lastTranscript,
+  String lastRole,
+  String error,
+});
 
 @Riverpod(keepAlive: true)
 class VoiceSessionController extends _$VoiceSessionController {
-  StreamSubscription<VoiceFrame>? _sub;
+  StreamSubscription<VoiceServerFrame>? _sub;
 
   @override
-  VoiceSessionStatus build() {
+  VoiceSessionState build() {
     ref.onDispose(() => _sub?.cancel());
-    return const VoiceSessionStatus();
+    return (
+      status: VoiceSessionStatus.idle,
+      lastIntent: null,
+      lastTranscript: '',
+      lastRole: '',
+      error: '',
+    );
   }
 
+  void connect(VoiceSessionConfig config) {
+    state = (
+      status: VoiceSessionStatus.connecting,
+      lastIntent: state.lastIntent,
+      lastTranscript: '',
+      lastRole: '',
+      error: '',
+    );
+    _sub = ref
+        .read(voiceSessionProvider)
+        .connect(config)
+        .listen(
+          _onFrame,
+          onError: (Object error) {
+            state = (
+              status: VoiceSessionStatus.error,
+              lastIntent: state.lastIntent,
+              lastTranscript: state.lastTranscript,
+              lastRole: state.lastRole,
+              error: error.toString(),
+            );
+          },
+        );
+  }
+
+  /// Opens a backend voice session and sends a text utterance (debug / E2E).
   Future<void> connectAndSpeak(
     String text, {
-    Severity tier = Severity.neutral,
+    ApiSeverity tier = ApiSeverity.neutral,
   }) async {
-    final repo = ref.read(voiceSessionRepositoryProvider);
-    await _sub?.cancel();
-    state = const VoiceSessionStatus(connected: true);
+    connect(
+      VoiceSessionConfig(
+        locale: 'en-US',
+        sampleRate: 16000,
+        codec: AudioCodec.pcm16,
+        tier: tier,
+      ),
+    );
+    send(VoiceClientFrame.text(text: text));
+  }
 
-    _sub = repo.frames.listen((frame) {
-      switch (frame) {
-        case VoiceTranscriptFrame(:final role, :final text):
-          state = state.copyWith(
-            lastRole: role,
-            lastTranscript: text,
-            error: '',
+  void send(VoiceClientFrame frame) =>
+      ref.read(voiceSessionProvider).send(frame);
+
+  /// Stops listening — unsubscribes and returns to idle.
+  void disconnect() {
+    unawaited(_sub?.cancel());
+    _sub = null;
+    state = (
+      status: VoiceSessionStatus.idle,
+      lastIntent: state.lastIntent,
+      lastTranscript: state.lastTranscript,
+      lastRole: state.lastRole,
+      error: '',
+    );
+  }
+
+  void _onFrame(VoiceServerFrame frame) {
+    switch (frame) {
+      case VoiceServerSessionReady():
+        state = (
+          status: VoiceSessionStatus.live,
+          lastIntent: state.lastIntent,
+          lastTranscript: state.lastTranscript,
+          lastRole: state.lastRole,
+          error: '',
+        );
+      case VoiceServerTranscript(:final role, :final text):
+        state = (
+          status: state.status,
+          lastIntent: state.lastIntent,
+          lastTranscript: text,
+          lastRole: role.name,
+          error: '',
+        );
+      case VoiceServerIntent(:final intent):
+        state = (
+          status: state.status,
+          lastIntent: intent,
+          lastTranscript: state.lastTranscript,
+          lastRole: state.lastRole,
+          error: '',
+        );
+      case VoiceServerError(:final message, :final fatal):
+        if (fatal) {
+          state = (
+            status: VoiceSessionStatus.error,
+            lastIntent: state.lastIntent,
+            lastTranscript: state.lastTranscript,
+            lastRole: state.lastRole,
+            error: message,
           );
-        case VoiceErrorFrame(:final message):
-          state = state.copyWith(error: message, connected: false);
-        case VoiceIntentFrame():
-          break;
-      }
-    });
-
-    try {
-      await repo.connect(tier: tier);
-      repo.sendText(text);
-    } on Object catch (error) {
-      state = state.copyWith(
-        connected: false,
-        error: error.toString(),
-      );
+        }
+      default:
+        break;
     }
   }
 }

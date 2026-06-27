@@ -1,0 +1,328 @@
+openapi: 3.1.0
+info:
+  title: SOS Emergency — Composition & Voice Health API
+  version: 1.0.0
+  description: >
+    HTTP routes for the GenUI emergency backend: the fast REST screen-JSON
+    composition endpoint (the AiTransportRepository channel) and the voice
+    service health probe. The live-voice WebSocket (/v1/voice/agent) is
+    described separately in asyncapi.yaml.
+servers:
+  - url: https://api.sos.local
+    description: Production
+paths:
+  /v1/voice/health:
+    get:
+      operationId: getVoiceHealth
+      summary: Liveness / readiness probe for the voice & composition backend.
+      parameters:
+        - name: verbose
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include the per-dependency breakdown.
+      responses:
+        '200':
+          description: Service healthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceHealthResponse'
+        '503':
+          description: Service degraded or down (same body shape).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceHealthResponse'
+
+  /v1/chat/stream:
+    post:
+      operationId: composeSurface
+      summary: Compose an A2UI screen for a classified incident.
+      description: >
+        Posts the deterministic Classification plus context and catalog version
+        and returns the A2UI surface. Negotiated by `stream`: text/event-stream
+        (SSE) when true, a single application/json body when false. Clients
+        time-box this call and fall back to the deterministic baseline on
+        timeout, error, or invalid layout.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComposeRequest'
+      responses:
+        '200':
+          description: >
+            The composed surface. With `stream:false` the body is a single
+            ComposeResponse; with `stream:true` it is an SSE stream whose each
+            `data:` line is one ComposeStreamEvent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComposeResponse'
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/ComposeStreamEvent'
+        '422':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+components:
+  schemas:
+    Severity:
+      type: string
+      enum: [neutral, moderate, high, critical]
+    AppMode:
+      type: string
+      enum: [triage, crash, medical, threat, roadside, documentation]
+    Connectivity:
+      type: string
+      enum: [online, degraded, offline]
+    CarState:
+      type: string
+      enum: [driving, parked]
+    ScenarioClass:
+      type: string
+      enum: [crash, medical, beingFollowed, flatTire, wontStart, lockedOut, outOfGas, unsafeParked, severeWeather, stranded, harassment, documentIncident, unknown]
+    Hazard:
+      type: string
+      enum: [smoke, fire, weather, lowVisibility]
+    FinishReason:
+      type: string
+      enum: [complete, timeout, refused]
+
+    A2uiNode:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          description: Catalog component name; unknown types render nothing.
+        id:
+          type: string
+          description: Optional stable id, used to merge streamed chunks.
+        props:
+          type: object
+          additionalProperties: true
+        bindings:
+          type: object
+          additionalProperties:
+            type: string
+          description: prop name -> DataModel path, e.g. "/sos/countdown".
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/A2uiNode'
+      additionalProperties: false
+
+    Classification:
+      type: object
+      required: [scenario, severity, mode, confidence]
+      properties:
+        scenario:
+          $ref: '#/components/schemas/ScenarioClass'
+        severity:
+          $ref: '#/components/schemas/Severity'
+        mode:
+          $ref: '#/components/schemas/AppMode'
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        hazards:
+          type: array
+          items:
+            $ref: '#/components/schemas/Hazard'
+      additionalProperties: false
+
+    VoiceHealthResponse:
+      type: object
+      required: [status, version, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, down]
+        version:
+          type: string
+          examples: ['1.4.2']
+        uptimeSeconds:
+          type: number
+          minimum: 0
+        activeSessions:
+          type: integer
+          minimum: 0
+        model:
+          type: object
+          required: [id, ready]
+          properties:
+            id:
+              type: string
+              examples: ['claude-opus-4-8']
+            ready:
+              type: boolean
+        dependencies:
+          type: array
+          description: Present when verbose=true.
+          items:
+            type: object
+            required: [name, status]
+            properties:
+              name:
+                type: string
+                examples: ['asr', 'tts', 'llm']
+              status:
+                type: string
+                enum: [ok, degraded, down]
+              latencyMs:
+                type: number
+                minimum: 0
+        timestamp:
+          type: string
+          format: date-time
+      additionalProperties: false
+
+    ComposePosition:
+      type: object
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        address:
+          type: string
+
+    ComposeContext:
+      type: object
+      required: [carState, connectivity, isNight, locale]
+      properties:
+        carState:
+          $ref: '#/components/schemas/CarState'
+        connectivity:
+          $ref: '#/components/schemas/Connectivity'
+        isNight:
+          type: boolean
+        locale:
+          type: string
+          examples: ['en-US']
+        emergencyNumber:
+          type: string
+          examples: ['911', '112']
+        position:
+          $ref: '#/components/schemas/ComposePosition'
+
+    ComposeRequest:
+      type: object
+      required: [classification, context, catalogVersion]
+      properties:
+        classification:
+          $ref: '#/components/schemas/Classification'
+        context:
+          $ref: '#/components/schemas/ComposeContext'
+        catalogVersion:
+          type: string
+          examples: ['2026.06.0']
+          description: Registry/manifest version the client can render.
+        stream:
+          type: boolean
+          default: true
+        timeBudgetMs:
+          type: integer
+          minimum: 100
+          maximum: 10000
+          default: 3000
+        requestId:
+          type: string
+          format: uuid
+      additionalProperties: false
+
+    ComposeUsage:
+      type: object
+      properties:
+        latencyMs:
+          type: number
+        inputTokens:
+          type: integer
+        outputTokens:
+          type: integer
+
+    ComposeResponse:
+      type: object
+      required: [requestId, surface]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        catalogVersion:
+          type: string
+        surface:
+          $ref: '#/components/schemas/A2uiNode'
+          description: Root is always an EmergencyRoot.
+        finishReason:
+          $ref: '#/components/schemas/FinishReason'
+        usage:
+          $ref: '#/components/schemas/ComposeUsage'
+      additionalProperties: false
+
+    ComposeStreamEvent:
+      description: One SSE event from the streaming compose response.
+      oneOf:
+        - $ref: '#/components/schemas/ComposeStreamNode'
+        - $ref: '#/components/schemas/ComposeStreamDone'
+        - $ref: '#/components/schemas/ComposeStreamError'
+      discriminator:
+        propertyName: type
+        mapping:
+          node: '#/components/schemas/ComposeStreamNode'
+          done: '#/components/schemas/ComposeStreamDone'
+          error: '#/components/schemas/ComposeStreamError'
+
+    ComposeStreamNode:
+      type: object
+      required: [type, node]
+      properties:
+        type:
+          const: node
+        parentId:
+          type: string
+          description: Merge target; null/absent = root.
+        node:
+          $ref: '#/components/schemas/A2uiNode'
+      additionalProperties: false
+
+    ComposeStreamDone:
+      type: object
+      required: [type, finishReason]
+      properties:
+        type:
+          const: done
+        finishReason:
+          $ref: '#/components/schemas/FinishReason'
+      additionalProperties: false
+
+    ComposeStreamError:
+      type: object
+      required: [type, code, message]
+      properties:
+        type:
+          const: error
+        code:
+          type: string
+          examples: ['invalid_layout', 'model_unavailable']
+        message:
+          type: string
+      additionalProperties: false
+
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string

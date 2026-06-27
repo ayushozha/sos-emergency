@@ -79,6 +79,6 @@ void main() {
     await tester.tap(find.text('Tap to speak'));
     await tester.pump();
 
-    expect(find.text('Listening...'), findsOneWidget);
+    expect(find.text('Listening…'), findsOneWidget);
   });
 }

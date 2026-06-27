@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sos_emergency/app/theme/sos_tokens.dart';
 import 'package:sos_emergency/app/theme/surface_palette.dart';
 import 'package:sos_emergency/application/orchestrator.dart';
-import 'package:sos_emergency/data/voice_session/voice_session_repository.dart';
+import 'package:sos_emergency/application/voice_session_controller.dart';
+import 'package:sos_emergency/data/api/api_enums.dart';
 import 'package:sos_emergency/domain/models/a2ui_node.dart';
 import 'package:sos_emergency/domain/models/emergency_enums.dart';
 import 'package:sos_emergency/presentation/catalog/shared/sos_chrome.dart';
@@ -13,29 +14,34 @@ import 'package:sos_emergency/presentation/catalog/shared/sos_icons.dart';
 import 'package:sos_emergency/presentation/catalog/voice_wake_listener.dart';
 import 'package:sos_emergency/presentation/surface/a2ui_renderer.dart';
 import 'package:sos_emergency/presentation/surface/binding_resolver.dart';
+import 'package:sos_emergency/presentation/surface/surface_actions.dart';
 import 'package:sos_emergency/presentation/surface/surface_theme_providers.dart';
 import 'package:sos_emergency/shared/backend_config.dart';
 
 /// `BigChoiceCard` — a large, icon-led, mutually-exclusive choice. One tap
-/// selects and advances; no submit step. Inputs: `label`, `icon`, `selected?`.
+/// selects and advances; no submit step. Inputs: `label`, `icon`, `selected?`,
+/// `scenario?` (navigation target).
 Widget buildBigChoiceCard(BuildContext context, WidgetRef ref, A2uiNode node) {
   final palette = ref.watch(surfacePaletteProvider);
   final label = ref.resolveString(node, 'label') ?? '';
-  final icon = SosIcons.resolve(ref.resolveString(node, 'icon'));
+  final iconName = ref.resolveString(node, 'icon');
   final selected = ref.resolve(node, 'selected') == true;
+  final scenario = ref.resolveString(node, 'scenario');
+  final tint = _choiceTint(iconName);
 
-  return Container(
+  final card = Container(
     constraints: const BoxConstraints(minHeight: 150),
-    padding: const EdgeInsets.all(SosTokens.space4),
+    padding: const EdgeInsets.all(SosTokens.space5),
     decoration: BoxDecoration(
-      color: palette.surface,
+      gradient: SosShadows.surfaceGradient(palette),
       borderRadius: BorderRadius.circular(SosTokens.radiusLg),
       border: Border.all(
         color: selected
             ? palette.info
-            : palette.textMuted.withValues(alpha: 0.16),
+            : palette.textMuted.withValues(alpha: 0.12),
         width: selected ? 2 : 1,
       ),
+      boxShadow: SosShadows.soft(palette),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,17 +51,40 @@ Widget buildBigChoiceCard(BuildContext context, WidgetRef ref, A2uiNode node) {
           width: 46,
           height: 46,
           decoration: BoxDecoration(
-            color: palette.tray,
+            color: tint.bg,
             borderRadius: BorderRadius.circular(SosTokens.radiusSm),
           ),
-          child: Icon(icon, color: palette.textMuted, size: 26),
+          child: Icon(SosIcons.resolve(iconName), color: tint.fg, size: 26),
         ),
         const SizedBox(height: SosTokens.space3),
         Text(label, style: SosText.title(palette.text)),
       ],
     ),
   );
+
+  if (scenario == null) return card;
+  return Material(
+    color: Colors.transparent,
+    borderRadius: BorderRadius.circular(SosTokens.radiusLg),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(SosTokens.radiusLg),
+      onTap: () => ref.navigateToScenarioNamed(scenario),
+      child: card,
+    ),
+  );
 }
+
+/// Category icon tint for a triage choice, matching the design's coloured icon
+/// chips (crash → orange, medical → red, threat → blue, else neutral).
+({Color bg, Color fg}) _choiceTint(String? icon) => switch (icon) {
+  'crash' => (bg: const Color(0xFFFBEDDD), fg: const Color(0xFFE07B3C)),
+  'medical' => (bg: const Color(0xFFFBE5E3), fg: const Color(0xFFD6443D)),
+  'unsafe' || 'followed' => (
+    bg: const Color(0xFFE2ECF7),
+    fg: const Color(0xFF3A7BD0),
+  ),
+  _ => (bg: const Color(0xFFEEF1F4), fg: const Color(0xFF5B6B7A)),
+};
 
 /// `ChoiceGrid` — arranges nested `BigChoiceCard`s in a fixed-column grid; the
 /// opening "What's happening?" surface. Input: `columns` (default 4).
@@ -304,10 +333,8 @@ class _PushToTalk extends ConsumerStatefulWidget {
 
 class _PushToTalkState extends ConsumerState<_PushToTalk> {
   VoiceWakeListener? _wakeListener;
-  StreamSubscription<VoiceFrame>? _voiceFrames;
-  String? _state;
-  String? _transcript;
-  bool _backendBusy = false;
+  String? _localTranscript;
+  bool _localListening = false;
 
   @override
   void initState() {
@@ -325,43 +352,64 @@ class _PushToTalkState extends ConsumerState<_PushToTalk> {
   @override
   void dispose() {
     _wakeListener?.stop();
-    unawaited(_voiceFrames?.cancel());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = _state ?? ref.resolveString(widget.node, 'state') ?? 'idle';
+    final voice = ref.watch(voiceSessionControllerProvider);
+    final propState = ref.resolveString(widget.node, 'state') ?? 'idle';
+    final propTranscript = ref.resolveString(widget.node, 'transcript');
+
+    ref.listen(voiceSessionControllerProvider, (prev, next) {
+      if (next.lastIntent != null) {
+        _routeFromIntent(next.lastIntent!);
+      }
+      if (next.lastTranscript.isNotEmpty) {
+        _routeFromTranscript(next.lastTranscript);
+      }
+    });
+
+    final listening =
+        _localListening ||
+        voice.status == VoiceSessionStatus.live ||
+        voice.status == VoiceSessionStatus.connecting ||
+        propState == 'listening';
+
     final transcript =
-        _transcript ?? ref.resolveString(widget.node, 'transcript');
+        _localTranscript ??
+        (voice.lastTranscript.isNotEmpty ? voice.lastTranscript : null) ??
+        propTranscript;
+
     return _PushToTalkBody(
-      state: state,
+      listening: listening,
       transcript: transcript,
-      onTap: () => unawaited(_activate('Hey, emergency')),
+      onTap: () {
+        if (ref.isVoiceActive) {
+          ref.toggleVoice();
+          setState(() => _localListening = false);
+        } else {
+          unawaited(_activate('Hey, emergency'));
+        }
+      },
     );
   }
 
   Future<void> _activate(String text) async {
     final utterance = text.trim().isEmpty ? 'Hey, emergency' : text.trim();
-    _showListening(utterance);
+    setState(() {
+      _localListening = true;
+      _localTranscript = _isWakePhrase(utterance) ? null : utterance;
+    });
     _routeFromTranscript(utterance);
     _wakeListener?.start();
 
-    if (!BackendConfig.useBackend || _backendBusy) return;
-
-    _backendBusy = true;
-    _voiceFrames ??= ref
-        .read(voiceSessionRepositoryProvider)
-        .frames
-        .listen(_handleVoiceFrame);
-    try {
-      final voice = ref.read(voiceSessionRepositoryProvider);
-      await voice.connect();
-      voice.sendText(utterance);
-    } on Object catch (error) {
-      _showVoiceError(error.toString());
-    } finally {
-      _backendBusy = false;
+    if (BackendConfig.useBackend) {
+      await ref
+          .read(voiceSessionControllerProvider.notifier)
+          .connectAndSpeak(utterance);
+    } else {
+      ref.toggleVoice();
     }
   }
 
@@ -369,48 +417,20 @@ class _PushToTalkState extends ConsumerState<_PushToTalk> {
     unawaited(_activate(transcript));
   }
 
-  void _handleVoiceFrame(VoiceFrame frame) {
-    if (!mounted) return;
-    switch (frame) {
-      case VoiceTranscriptFrame(:final text):
-        _showHeardText(text);
-        _routeFromTranscript(text);
-      case VoiceIntentFrame(:final intent):
-        _routeFromIntent(intent);
-      case VoiceErrorFrame(:final message):
-        _showVoiceError(message);
-    }
-  }
-
-  void _showListening(String transcript) {
-    if (!mounted) return;
-    setState(() {
-      _state = 'listening';
-      _transcript = _isWakePhrase(transcript) ? 'Listening...' : transcript;
-    });
-  }
-
   void _showHeardText(String transcript) {
     if (!mounted || transcript.trim().isEmpty) return;
     setState(() {
-      _state = 'listening';
-      _transcript = transcript.trim();
+      _localListening = true;
+      _localTranscript = transcript.trim();
     });
-  }
-
-  void _showVoiceError(String message) {
-    if (!mounted || message.trim().isEmpty) return;
-    setState(() {
-      _state = 'idle';
-      _transcript = message;
-    });
+    _routeFromTranscript(transcript);
   }
 
   void _showWakeError(String message) {
-    if (!mounted || message.trim().isEmpty || _state == 'listening') return;
+    if (!mounted || message.trim().isEmpty || _localListening) return;
     setState(() {
-      _state = 'idle';
-      _transcript = message;
+      _localListening = false;
+      _localTranscript = message;
     });
   }
 
@@ -423,17 +443,17 @@ class _PushToTalkState extends ConsumerState<_PushToTalk> {
         .select(SurfaceViewMode.live);
   }
 
-  void _routeFromIntent(UserIntent intent) {
+  void _routeFromIntent(VoiceIntent intent) {
     final scenario = switch (intent) {
-      UserIntent.carProblem ||
-      UserIntent.roadside ||
-      UserIntent.outOfGas => ScenarioClass.wontStart,
-      UserIntent.crash => ScenarioClass.crash,
-      UserIntent.medical => ScenarioClass.medical,
-      UserIntent.feelUnsafe => ScenarioClass.unsafeParked,
-      UserIntent.beingFollowed => ScenarioClass.beingFollowed,
-      UserIntent.lockedOut => ScenarioClass.lockedOut,
-      UserIntent.document || UserIntent.none => null,
+      VoiceIntent.carProblem ||
+      VoiceIntent.roadside ||
+      VoiceIntent.outOfGas => ScenarioClass.wontStart,
+      VoiceIntent.crash => ScenarioClass.crash,
+      VoiceIntent.medical => ScenarioClass.medical,
+      VoiceIntent.feelUnsafe => ScenarioClass.unsafeParked,
+      VoiceIntent.beingFollowed => ScenarioClass.beingFollowed,
+      VoiceIntent.lockedOut => ScenarioClass.lockedOut,
+      VoiceIntent.document || VoiceIntent.none => null,
     };
     if (scenario == null) return;
     ref.read(demoScenarioProvider.notifier).select(scenario);
@@ -480,77 +500,80 @@ class _PushToTalkState extends ConsumerState<_PushToTalk> {
 
 class _PushToTalkBody extends ConsumerWidget {
   const _PushToTalkBody({
-    required this.state,
+    required this.listening,
     required this.transcript,
     required this.onTap,
   });
 
-  final String state;
+  final bool listening;
   final String? transcript;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = ref.watch(surfacePaletteProvider);
-    final listening = state == 'listening';
+
+    final body = Container(
+      padding: const EdgeInsets.all(SosTokens.space5),
+      decoration: BoxDecoration(
+        color: listening ? palette.safe.withValues(alpha: 0.12) : palette.tray,
+        borderRadius: BorderRadius.circular(SosTokens.radiusMd),
+        border: listening ? Border.all(color: palette.safe) : null,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              color: palette.surface,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: listening
+                    ? palette.safe
+                    : palette.textMuted.withValues(alpha: 0.2),
+                width: listening ? 2 : 1,
+              ),
+            ),
+            child: Icon(
+              SosIcons.resolve('voice'),
+              size: 44,
+              color: listening ? palette.safe : palette.textMuted,
+            ),
+          ),
+          const SizedBox(height: SosTokens.space4),
+          if (listening)
+            Text(
+              transcript ?? 'Listening…',
+              textAlign: TextAlign.center,
+              style: SosText.body(SosStatus.reached),
+            )
+          else
+            Column(
+              children: [
+                Text('Tap to speak', style: SosText.headline(palette.text)),
+                const SizedBox(height: SosTokens.space1),
+                Text(
+                  'or say "Hey, emergency"',
+                  style: SosText.body(palette.textMuted),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
 
     return Semantics(
       button: true,
-      label: 'Tap to speak',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(SosTokens.space5),
-          decoration: BoxDecoration(
-            color: listening
-                ? palette.safe.withValues(alpha: 0.12)
-                : palette.tray,
-            borderRadius: BorderRadius.circular(SosTokens.radiusMd),
-            border: listening ? Border.all(color: palette.safe) : null,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  color: palette.surface,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: listening
-                        ? palette.safe
-                        : palette.textMuted.withValues(alpha: 0.2),
-                    width: listening ? 2 : 1,
-                  ),
-                ),
-                child: Icon(
-                  SosIcons.resolve('voice'),
-                  size: 44,
-                  color: listening ? palette.safe : palette.textMuted,
-                ),
-              ),
-              const SizedBox(height: SosTokens.space4),
-              if (listening)
-                Text(
-                  transcript ?? 'Listening…',
-                  textAlign: TextAlign.center,
-                  style: SosText.body(SosStatus.reached),
-                )
-              else
-                Column(
-                  children: [
-                    Text('Tap to speak', style: SosText.headline(palette.text)),
-                    const SizedBox(height: SosTokens.space1),
-                    Text(
-                      'or say "Hey, emergency"',
-                      style: SosText.body(palette.textMuted),
-                    ),
-                  ],
-                ),
-            ],
-          ),
+      label: listening ? 'Listening — tap to stop' : 'Tap to speak',
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(SosTokens.radiusMd),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(SosTokens.radiusMd),
+          onTap: onTap,
+          child: body,
         ),
       ),
     );

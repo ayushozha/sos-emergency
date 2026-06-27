@@ -3,8 +3,8 @@ import 'package:sos_emergency/domain/models/emergency_enums.dart';
 
 /// Signal-source boundaries. Each exposes the latest snapshot of one input; the
 /// context aggregator fuses them into an `EmergencyContext`. Real platform
-/// impls (AAOS CarPropertyManager, GPS, etc.) arrive in Phase 5; Phase 2 ships
-/// fakes.
+/// impls (device GPS, motion sensors, connectivity) arrive in Phase 5; Phase 2
+/// ships fakes.
 
 abstract interface class SensorRepository {
   /// Whether a crash impulse has been detected (accelerometer/gyro).

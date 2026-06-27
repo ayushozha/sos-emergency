@@ -344,15 +344,33 @@ final class EmergencyContextProvider
 
 String _$emergencyContextHash() => r'5ff06726dea4dc19a23bf0a6d87fd0cf4bd2af9f';
 
-/// Sense → classify → compose (AI with deterministic fallback) → render.
+/// The orchestrator loop: sense → classify → compose → validate → render.
+///
+/// The deterministic baseline is enforced by the Safety Supervisor and rendered
+/// immediately. Best-effort AI enrichment is then kicked off, time-boxed; if it
+/// returns a valid surface in time it replaces the baseline (after passing the
+/// Supervisor), otherwise the baseline stays. The AI is never on the critical
+/// path and can never remove a safety capability.
 
 @ProviderFor(SurfaceController)
 final surfaceControllerProvider = SurfaceControllerProvider._();
 
-/// Sense → classify → compose (AI with deterministic fallback) → render.
+/// The orchestrator loop: sense → classify → compose → validate → render.
+///
+/// The deterministic baseline is enforced by the Safety Supervisor and rendered
+/// immediately. Best-effort AI enrichment is then kicked off, time-boxed; if it
+/// returns a valid surface in time it replaces the baseline (after passing the
+/// Supervisor), otherwise the baseline stays. The AI is never on the critical
+/// path and can never remove a safety capability.
 final class SurfaceControllerProvider
-    extends $AsyncNotifierProvider<SurfaceController, Surface> {
-  /// Sense → classify → compose (AI with deterministic fallback) → render.
+    extends $NotifierProvider<SurfaceController, Surface> {
+  /// The orchestrator loop: sense → classify → compose → validate → render.
+  ///
+  /// The deterministic baseline is enforced by the Safety Supervisor and rendered
+  /// immediately. Best-effort AI enrichment is then kicked off, time-boxed; if it
+  /// returns a valid surface in time it replaces the baseline (after passing the
+  /// Supervisor), otherwise the baseline stays. The AI is never on the critical
+  /// path and can never remove a safety capability.
   SurfaceControllerProvider._()
     : super(
         from: null,
@@ -370,23 +388,37 @@ final class SurfaceControllerProvider
   @$internal
   @override
   SurfaceController create() => SurfaceController();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(Surface value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<Surface>(value),
+    );
+  }
 }
 
-String _$surfaceControllerHash() => r'b3d4fa5fb8253bf02cf71a16977440985d9cd15b';
+String _$surfaceControllerHash() => r'5caa4f90d088a66eb2edfde3381c59ecf2730fdf';
 
-/// Sense → classify → compose (AI with deterministic fallback) → render.
+/// The orchestrator loop: sense → classify → compose → validate → render.
+///
+/// The deterministic baseline is enforced by the Safety Supervisor and rendered
+/// immediately. Best-effort AI enrichment is then kicked off, time-boxed; if it
+/// returns a valid surface in time it replaces the baseline (after passing the
+/// Supervisor), otherwise the baseline stays. The AI is never on the critical
+/// path and can never remove a safety capability.
 
-abstract class _$SurfaceController extends $AsyncNotifier<Surface> {
-  FutureOr<Surface> build();
+abstract class _$SurfaceController extends $Notifier<Surface> {
+  Surface build();
   @$mustCallSuper
   @override
   void runBuild() {
-    final ref = this.ref as $Ref<AsyncValue<Surface>, Surface>;
+    final ref = this.ref as $Ref<Surface, Surface>;
     final element =
         ref.element
             as $ClassProviderElement<
-              AnyNotifier<AsyncValue<Surface>, Surface>,
-              AsyncValue<Surface>,
+              AnyNotifier<Surface, Surface>,
+              Surface,
               Object?,
               Object?
             >;

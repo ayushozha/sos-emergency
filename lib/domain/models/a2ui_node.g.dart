@@ -25,5 +25,5 @@ Map<String, dynamic> _$A2uiNodeToJson(_A2uiNode instance) => <String, dynamic>{
   'type': instance.type,
   'props': instance.props,
   'bindings': instance.bindings,
-  'children': instance.children,
+  'children': instance.children.map((e) => e.toJson()).toList(),
 };
