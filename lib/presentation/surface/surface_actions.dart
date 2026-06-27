@@ -11,7 +11,7 @@ import 'package:sos_emergency/domain/models/emergency_enums.dart';
 const _voiceConfig = VoiceSessionConfig(
   locale: 'en-US',
   sampleRate: 24000,
-  codec: AudioCodec.opus,
+  codec: AudioCodec.pcm16,
 );
 
 /// Interaction handlers the catalog widgets dispatch on tap. Navigation in this
@@ -49,7 +49,7 @@ extension SurfaceActions on WidgetRef {
   void toggleVoice() {
     final controller = read(voiceSessionControllerProvider.notifier);
     if (isVoiceActive) {
-      controller.disconnect();
+      unawaited(controller.disconnect());
     } else {
       controller.connect(_voiceConfig);
     }

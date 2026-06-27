@@ -6,7 +6,17 @@ import 'package:web/web.dart' as web;
 
 /// Plays backend `audio.chunk` frames (PCM16 @ 24 kHz, optional WAV header).
 class VoiceTtsPlayer {
-  Future<void> ensureResumed() async {}
+  web.HTMLAudioElement? _unlockElement;
+
+  /// Call from a user gesture so Chrome allows subsequent TTS playback.
+  Future<void> ensureResumed() async {
+    _unlockElement ??= web.HTMLAudioElement();
+    try {
+      await _unlockElement!.play().toDart;
+    } on Object {
+      // Blocked until a real user gesture — play() on TTS chunks may still work.
+    }
+  }
 
   void reset() {}
 
@@ -28,7 +38,11 @@ class VoiceTtsPlayer {
     element.onended = ((web.Event _) {
       web.URL.revokeObjectURL(url);
     }).toJS;
-    element.play();
+    try {
+      await element.play().toDart;
+    } on Object {
+      // Autoplay policy — user must click the page first.
+    }
   }
 
   bool _isWav(Uint8List bytes) =>

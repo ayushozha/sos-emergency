@@ -48,10 +48,13 @@ typedef VoiceSessionState = ({
 @Riverpod(keepAlive: true)
 class VoiceSessionController extends _$VoiceSessionController {
   StreamSubscription<VoiceServerFrame>? _sub;
+  Completer<void>? _readyCompleter;
 
   @override
   VoiceSessionState build() {
-    ref.onDispose(() => _sub?.cancel());
+    ref.onDispose(() {
+      unawaited(_sub?.cancel());
+    });
     return (
       status: VoiceSessionStatus.idle,
       lastIntent: null,
@@ -62,6 +65,8 @@ class VoiceSessionController extends _$VoiceSessionController {
   }
 
   void connect(VoiceSessionConfig config) {
+    unawaited(_sub?.cancel());
+    _readyCompleter = Completer<void>();
     state = (
       status: VoiceSessionStatus.connecting,
       lastIntent: state.lastIntent,
@@ -75,6 +80,8 @@ class VoiceSessionController extends _$VoiceSessionController {
         .listen(
           _onFrame,
           onError: (Object error) {
+            _readyCompleter?.completeError(error);
+            _readyCompleter = null;
             state = (
               status: VoiceSessionStatus.error,
               lastIntent: state.lastIntent,
@@ -99,6 +106,18 @@ class VoiceSessionController extends _$VoiceSessionController {
         tier: tier,
       ),
     );
+    try {
+      await _readyCompleter!.future.timeout(const Duration(seconds: 20));
+    } on Object catch (error) {
+      state = (
+        status: VoiceSessionStatus.error,
+        lastIntent: state.lastIntent,
+        lastTranscript: state.lastTranscript,
+        lastRole: state.lastRole,
+        error: error.toString(),
+      );
+      return;
+    }
     send(VoiceClientFrame.text(text: text));
   }
 
@@ -106,9 +125,14 @@ class VoiceSessionController extends _$VoiceSessionController {
       ref.read(voiceSessionProvider).send(frame);
 
   /// Stops listening — unsubscribes and returns to idle.
-  void disconnect() {
-    unawaited(_sub?.cancel());
+  Future<void> disconnect() async {
+    if (state.status == VoiceSessionStatus.live ||
+        state.status == VoiceSessionStatus.connecting) {
+      send(const VoiceClientFrame.sessionEnd());
+    }
+    await _sub?.cancel();
     _sub = null;
+    _readyCompleter = null;
     state = (
       status: VoiceSessionStatus.idle,
       lastIntent: state.lastIntent,
@@ -121,6 +145,10 @@ class VoiceSessionController extends _$VoiceSessionController {
   void _onFrame(VoiceServerFrame frame) {
     switch (frame) {
       case VoiceServerSessionReady():
+        if (_readyCompleter != null && !_readyCompleter!.isCompleted) {
+          _readyCompleter!.complete();
+        }
+        _readyCompleter = null;
         state = (
           status: VoiceSessionStatus.live,
           lastIntent: state.lastIntent,
@@ -145,7 +173,18 @@ class VoiceSessionController extends _$VoiceSessionController {
           error: '',
         );
       case VoiceServerError(:final message, :final fatal):
+        if (!fatal && message.isNotEmpty) {
+          state = (
+            status: state.status,
+            lastIntent: state.lastIntent,
+            lastTranscript: state.lastTranscript,
+            lastRole: state.lastRole,
+            error: message,
+          );
+        }
         if (fatal) {
+          _readyCompleter?.completeError(message);
+          _readyCompleter = null;
           state = (
             status: VoiceSessionStatus.error,
             lastIntent: state.lastIntent,

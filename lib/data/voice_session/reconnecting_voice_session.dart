@@ -42,11 +42,23 @@ class ReconnectingVoiceSession implements VoiceSessionRepository {
   @override
   Stream<VoiceServerFrame> connect(VoiceSessionConfig config) {
     _config = config;
-    _open();
+    if (_closed) {
+      _closed = false;
+      _attempt = 0;
+    }
+    unawaited(_reopen());
     return _out.stream;
   }
 
-  void _open() {
+  Future<void> _resetChannel() async {
+    await _sub?.cancel();
+    _sub = null;
+    await _channel?.close();
+    _channel = null;
+  }
+
+  Future<void> _reopen() async {
+    await _resetChannel();
     if (_closed) return;
     final channel = _connector(uri)
       ..send(
@@ -76,7 +88,7 @@ class ReconnectingVoiceSession implements VoiceSessionRepository {
       );
       return;
     }
-    Timer(_backoff(_attempt++), _open);
+    Timer(_backoff(_attempt++), () => unawaited(_reopen()));
   }
 
   @override
@@ -86,8 +98,7 @@ class ReconnectingVoiceSession implements VoiceSessionRepository {
   @override
   Future<void> close() async {
     _closed = true;
-    await _sub?.cancel();
-    await _channel?.close();
+    await _resetChannel();
     await _out.close();
   }
 }
